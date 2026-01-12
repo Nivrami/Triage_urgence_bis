@@ -46,7 +46,7 @@ def run_complete_simulation(pathology_description: str):
     print("\n🤖 Création des agents...")
     patient_simulator = PatientSimulator(llm, patient)
     nurse = NurseAgent(llm, max_questions=6)
-    print("✅ Agents prêts")
+    print("✅ Agents prêts") 
     
     # 4. Plainte initiale
     print("\n" + "=" * 70)
