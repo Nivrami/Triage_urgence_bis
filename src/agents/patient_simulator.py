@@ -1,179 +1,222 @@
 """
-Agent simulateur de patient.
+Simulateur de patient - Version dynamique sans profils prédéfinis.
 
-Utilisé pour la page simulation: simule un patient avec un profil prédéfini.
+Simule un patient avec un profil généré par PatientGenerator.
 """
 
 from typing import Optional
-import random
 from .base_agent import BaseAgent
 from ..llm.base_llm import BaseLLMProvider
-from ..models.patient import GravityLevel, Constantes
-
-
-# Profils de patients prédéfinis pour la simulation
-PATIENT_PROFILES = {
-    GravityLevel.GRIS: [
-        {
-            "description": "Renouvellement ordonnance",
-            "symptomes": ["besoin de renouveler mon ordonnance"],
-            "age": 45,
-            "sexe": "F",
-            "constantes": {"fc": 72, "ta_systolique": 120, "ta_diastolique": 80},
-            "personnalite": "calme, organisé"
-        },
-        {
-            "description": "Certificat médical sport",
-            "symptomes": ["besoin d'un certificat pour le sport"],
-            "age": 25,
-            "sexe": "M",
-            "constantes": {"fc": 65, "ta_systolique": 118, "ta_diastolique": 75},
-            "personnalite": "pressé, en bonne santé"
-        },
-    ],
-    GravityLevel.VERT: [
-        {
-            "description": "Entorse cheville",
-            "symptomes": ["mal à la cheville", "gonflée", "tombé en marchant"],
-            "age": 32,
-            "sexe": "M",
-            "constantes": {"fc": 78, "ta_systolique": 125, "ta_diastolique": 82},
-            "personnalite": "inquiet mais stable"
-        },
-        {
-            "description": "Gastro-entérite",
-            "symptomes": ["nausées", "diarrhée", "mal au ventre depuis hier"],
-            "age": 28,
-            "sexe": "F",
-            "constantes": {"fc": 85, "temperature": 37.8},
-            "personnalite": "fatiguée, un peu anxieuse"
-        },
-    ],
-    GravityLevel.JAUNE: [
-        {
-            "description": "Fracture bras",
-            "symptomes": ["très mal au bras", "ne peut pas bouger", "chute vélo"],
-            "age": 40,
-            "sexe": "M",
-            "constantes": {"fc": 95, "ta_systolique": 140, "ta_diastolique": 90},
-            "personnalite": "douloureux, stressé"
-        },
-        {
-            "description": "Fièvre élevée persistante",
-            "symptomes": ["fièvre depuis 3 jours", "très fatigué", "frissons"],
-            "age": 55,
-            "sexe": "F",
-            "constantes": {"fc": 100, "temperature": 39.5, "ta_systolique": 100},
-            "personnalite": "affaiblie, confuse par moments"
-        },
-    ],
-    GravityLevel.ROUGE: [
-        {
-            "description": "Douleur thoracique",
-            "symptomes": ["douleur dans la poitrine", "oppression", "mal au bras gauche"],
-            "age": 62,
-            "sexe": "M",
-            "constantes": {"fc": 110, "ta_systolique": 160, "ta_diastolique": 95, "spo2": 94},
-            "personnalite": "très anxieux, sueurs"
-        },
-        {
-            "description": "Difficulté respiratoire sévère",
-            "symptomes": ["ne peut plus respirer", "lèvres bleues", "asthmatique"],
-            "age": 35,
-            "sexe": "F",
-            "constantes": {"fc": 120, "fr": 28, "spo2": 88},
-            "personnalite": "paniquée, essoufflée"
-        },
-    ],
-}
+from ..models.patient import Patient
+from ..models.conversation import ConversationHistory
 
 
 class PatientSimulator(BaseAgent):
     """
-    Agent qui simule un patient pour les tests et la démonstration.
+    Simule un patient avec un profil donné.
     
-    Le patient a un profil prédéfini avec:
-    - Symptômes réels
-    - Constantes vitales
-    - Personnalité (affecte les réponses)
-    - Gravité réelle (pour évaluation)
+    Le patient répond aux questions de manière cohérente avec :
+    - Ses symptômes
+    - Ses constantes vitales
+    - Ses antécédents
+    - Sa personnalité (déduite de la gravité)
     """
     
     def __init__(
         self,
         llm_provider: BaseLLMProvider,
-        patient_profile: Optional[dict] = None,
-        system_prompt: str = ""
-    ) -> None:
+        patient: Patient
+    ):
         """
-        Initialise le simulateur de patient.
+        Initialise le simulateur avec un patient.
         
         Args:
             llm_provider: Provider LLM
-            patient_profile: Profil du patient (optionnel)
-            system_prompt: Prompt système custom
+            patient: Profil patient généré par PatientGenerator
         """
-        pass
+        self.patient = patient
+        self.conversation = ConversationHistory()
+        
+        # Créer le system prompt basé sur le patient
+        system_prompt = self._build_system_prompt()
+        
+        super().__init__(
+            llm_provider=llm_provider,
+            system_prompt=system_prompt,
+            name=f"Patient_{patient.prenom}"
+        )
     
-    def run(self, question: str) -> str:
+    def run(self, input_data: str) -> dict:
         """
-        Répond à une question comme le patient.
+        Répond à une question de l'infirmier.
+        
+        Args:
+            input_data: Question posée
+            
+        Returns:
+            dict avec "response": str
+        """
+        response = self.respond(input_data)
+        return {"response": response}
+    
+    def respond(self, question: str) -> str:
+        """
+        Le patient répond à une question de l'infirmier.
         
         Args:
             question: Question posée par l'infirmier
             
         Returns:
-            Réponse du patient simulé
+            str: Réponse du patient
         """
-        pass
-    
-    def set_profile(self, profile: dict) -> None:
-        """
-        Définit le profil du patient simulé.
+        # Ajouter la question à l'historique
+        self.conversation.add_user_message(question)
         
-        Args:
-            profile: Dictionnaire avec les infos du patient
-        """
-        pass
-    
-    def generate_random_profile(
-        self, 
-        gravity_level: Optional[GravityLevel] = None
-    ) -> dict:
-        """
-        Génère un profil aléatoire.
+        # Construire les messages pour le LLM
+        messages = self._build_messages(question, self.conversation)
         
-        Args:
-            gravity_level: Niveau de gravité souhaité (aléatoire si None)
-            
+        # Générer la réponse
+        response = self.llm.generate(
+            messages=messages,
+            temperature=0.8,  # Un peu de variabilité pour être naturel
+            max_tokens=200
+        )
+        
+        # Sauvegarder la réponse
+        self.conversation.add_assistant_message(response)
+        
+        return response
+    
+    def get_initial_complaint(self) -> str:
+        """
+        Génère la plainte initiale du patient.
+        
         Returns:
-            Profil patient complet
+            str: Première phrase du patient en arrivant aux urgences
         """
-        pass
-    
-    def get_true_gravity(self) -> GravityLevel:
-        """
-        Retourne la vraie gravité du patient simulé.
-        Utilisé pour évaluer la précision du triage.
-        """
-        pass
-    
-    def get_true_constantes(self) -> Constantes:
-        """Retourne les vraies constantes (pour évaluation)."""
-        pass
-    
-    def get_profile_summary(self) -> str:
-        """Résumé du profil pour affichage."""
-        pass
-    
-    def _build_patient_prompt(self) -> str:
-        """Construit le prompt avec le profil injecté."""
-        pass
-    
-    def should_reveal_symptom(self, symptom: str, question: str) -> bool:
-        """
-        Détermine si le patient doit révéler un symptôme.
+        prompt = """Tu arrives aux urgences. 
         
-        Simule le fait que les patients ne disent pas tout d'emblée.
-        """
-        pass
+Dis bonjour et exprime ta plainte principale en 1-2 phrases SIMPLES.
+
+Exemple de bonnes réponses :
+- "Bonjour docteur, j'ai très mal au cœur depuis ce matin..."
+- "Bonjour, je n'arrive plus à respirer correctement..."
+- "Bonjour, ma cheville est très gonflée depuis ma chute..."
+
+Réponds maintenant :"""
+        
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = self.llm.generate(
+            messages=messages,
+            temperature=0.8,
+            max_tokens=150
+        )
+        
+        # Sauvegarder dans l'historique
+        self.conversation.add_assistant_message(response)
+        
+        return response
+    
+    def _build_system_prompt(self) -> str:
+        """Construit le prompt système basé sur le profil patient."""
+        
+        prompt = f"""Tu es {self.patient.prenom} {self.patient.nom}, {self.patient.age} ans, qui arrive aux urgences.
+
+**TES SYMPTÔMES :**
+"""
+        
+        for symptom in self.patient.symptomes_exprimes:
+            prompt += f"- {symptom}\n"
+        
+        prompt += f"\n**DEPUIS QUAND :**\n{self.patient.duree_symptomes or 'Quelques heures'}\n"
+        
+        # Constantes (le patient ne les connaît pas précisément)
+        if self.patient.constantes:
+            prompt += "\n**CE QUE TU RESSENS PHYSIQUEMENT :**\n"
+            
+            const = self.patient.constantes
+            
+            if const.fc and const.fc > 100:
+                prompt += "- Ton cœur bat vite, tu le sens\n"
+            elif const.fc and const.fc < 60:
+                prompt += "- Tu te sens faible\n"
+            
+            if const.spo2 and const.spo2 < 92:
+                prompt += "- Tu as du mal à respirer, tu es essoufflé\n"
+            
+            if const.temperature and const.temperature > 38:
+                prompt += f"- Tu as chaud, tu transpires (tu as {const.temperature}°C de fièvre)\n"
+            
+            if const.ta_systolique and const.ta_systolique < 90:
+                prompt += "- Tu te sens étourdi, faible\n"
+        
+        # Antécédents
+        if self.patient.antecedents:
+            prompt += "\n**TES ANTÉCÉDENTS MÉDICAUX :**\n"
+            for ant in self.patient.antecedents:
+                prompt += f"- {ant}\n"
+        
+        # Règles de comportement
+        prompt += """
+**COMMENT TU DOIS TE COMPORTER :**
+
+1. **Parle SIMPLEMENT** : Tu es un patient normal, pas un médecin
+   ❌ "J'ai une dyspnée"
+   ✅ "J'ai du mal à respirer"
+   
+   ❌ "Douleur rétrosternale constrictive"
+   ✅ "J'ai mal au milieu de la poitrine, ça serre fort"
+
+2. **Exprime tes symptômes subjectivement** :
+   - "j'ai mal", "ça me fait mal quand..."
+   - "ça serre", "ça brûle", "ça lance"
+   - "je sens que...", "j'ai l'impression que..."
+
+3. **Tu es INQUIET** : C'est pour ça que tu es venu aux urgences
+   - Montre ton inquiétude dans tes réponses
+   - Tu peux être anxieux, stressé
+
+4. **Tu NE CONNAIS PAS ta maladie** : Tu décris juste ce que tu ressens
+
+5. **Sois COHÉRENT** : 
+   - Réponds selon tes symptômes listés
+   - Ne contredis pas tes réponses précédentes
+   - Si on te demande un symptôme que tu n'as pas, dis NON
+
+6. **Reste naturel** :
+   - Phrases courtes et simples
+   - Tu peux hésiter parfois
+   - Tu peux ne pas savoir exactement
+
+**EXEMPLES DE DIALOGUE :**
+
+Infirmier : "Depuis quand avez-vous mal ?"
+TOI : "Ça a commencé ce matin vers 8h, d'un coup..." ✅
+
+Infirmier : "Où avez-vous mal exactement ?"
+TOI : "Là, au milieu de la poitrine, et ça descend dans le bras gauche..." ✅
+
+Infirmier : "Avez-vous de la fièvre ?"
+TOI : "Oui, je me sens chaud et je transpire..." ✅
+
+Infirmier : "Avez-vous des antécédents ?"
+TOI : "Oui, je suis diabétique depuis 10 ans et hypertendu..." ✅
+"""
+        
+        return prompt
+    
+    def get_patient_profile(self) -> Patient:
+        """Retourne le profil patient."""
+        return self.patient
+    
+    def get_conversation_history(self) -> ConversationHistory:
+        """Retourne l'historique de conversation."""
+        return self.conversation
+    
+    def reset_conversation(self) -> None:
+        """Réinitialise l'historique de conversation."""
+        self.conversation = ConversationHistory()

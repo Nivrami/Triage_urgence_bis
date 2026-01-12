@@ -11,13 +11,13 @@ import uuid
 
 class MessageRole(Enum):
     """Rôles possibles dans une conversation."""
-    SYSTEM = "system"
-    USER = "user"
-    ASSISTANT = "assistant"
+    SYSTEM = "system"   # Message système
+    USER = "user"      # Message utilisateur (patient)
+    ASSISTANT = "assistant"  # Message assistant (infirmier/agent) 
     
-    def to_openai_format(self) -> str:
-        """Format pour l'API OpenAI."""
-        pass
+    def to_claude_format(self) -> str:
+        """Format pour l'API Claude."""
+        return self.value
 
 
 class Message(BaseModel):
@@ -30,12 +30,22 @@ class Message(BaseModel):
     metadata: Optional[dict] = Field(default_factory=dict)
     
     def to_llm_format(self) -> dict:
-        """Format pour l'API LLM (OpenAI, etc.)."""
-        pass
+        """Format pour l'API LLM (claude)."""
+        return {
+            "role": self.role.to_claude_format(),
+            "content": self.content
+        }   
+        
     
     def to_display_format(self) -> dict:
         """Format pour l'affichage dans l'interface."""
-        pass
+        return {
+            "role": self.role.value,
+            "content": self.content,
+            "timestamp": self.timestamp ,
+            "metadata": self.metadata
+        }  
+        
 
 
 class ConversationHistory(BaseModel):
@@ -52,44 +62,51 @@ class ConversationHistory(BaseModel):
     
     def add_message(self, role: MessageRole, content: str, metadata: Optional[dict] = None) -> None:
         """Ajoute un message à l'historique."""
-        pass
+        msg = Message(role=role, content=content, metadata=metadata or {})
+        self.messages.append(msg) 
+        self.updated_at = datetime.now()  
+        
     
     def add_system_message(self, content: str) -> None:
         """Ajoute un message système."""
-        pass
+        self.add_message(role=MessageRole.SYSTEM, content=content)
+
     
     def add_user_message(self, content: str) -> None:
         """Ajoute un message utilisateur (patient)."""
-        pass
+        self.add_message(role=MessageRole.USER, content=content)
     
     def add_assistant_message(self, content: str) -> None:
         """Ajoute un message assistant (infirmier/agent)."""
-        pass
-    
+        self.add_message(role=MessageRole.ASSISTANT, content=content)
+
     def to_llm_format(self) -> list[dict]:
         """Convertit l'historique au format API LLM."""
-        pass
+        return [msg.to_llm_format() for msg in self.messages]
     
     def to_display_format(self) -> list[dict]:
         """Format pour affichage Streamlit."""
-        pass
+        return [msg.to_display_format() for msg in self.messages]
     
     def get_last_n_messages(self, n: int) -> list[Message]:
         """Retourne les n derniers messages."""
-        pass
+        return self.messages[-n:] if n <= len(self.messages) else self.messages
     
     def get_messages_by_role(self, role: MessageRole) -> list[Message]:
         """Retourne tous les messages d'un rôle donné."""
-        pass
+        return [msg for msg in self.messages if msg.role == role]
     
     def get_full_text(self) -> str:
         """Retourne la conversation complète en texte."""
-        pass
+        return "\n".join([f"{msg.role.value}: {msg.content}" for msg in self.messages])
     
     def get_turn_count(self) -> int:
         """Retourne le nombre de tours de dialogue."""
-        pass
+        user_messages = len([m for m in self.messages if m.role == MessageRole.USER])
+        return user_messages 
     
     def clear(self) -> None:
         """Vide l'historique."""
-        pass
+        self.messages = []
+        self.updated_at = datetime.now()
+        self.is_complete = False  

@@ -1,9 +1,9 @@
 from .base_llm import BaseLLMProvider
-from .openai_provider import OpenAIProvider
+from .mistral_provider import MistralProvider   
 from .llm_factory import LLMFactory
 
-__all__ = [
+_all__ = [
     "BaseLLMProvider",
-    "OpenAIProvider",
-    "LLMFactory",
-]
+    "MistralProvider",
+    "LLMFactory"
+]   

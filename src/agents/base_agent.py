@@ -1,16 +1,14 @@
 """
 Classe abstraite pour tous les agents.
 
-JUSTIFIER: Pourquoi une classe abstraite?
-- Garantit une interface commune
-- Facilite l'extension (nouveaux agents)
-- Permet le polymorphisme
 """
 
 from abc import ABC, abstractmethod
 from typing import Optional, Any
+import json
+import re
 from ..llm.base_llm import BaseLLMProvider
-from ..models.conversation import ConversationHistory, MessageRole
+from ..models.conversation import ConversationHistory     
 
 
 class BaseAgent(ABC):
@@ -19,7 +17,7 @@ class BaseAgent(ABC):
     def __init__(
         self, 
         llm_provider: BaseLLMProvider, 
-        system_prompt: str,
+        system_prompt: str = "",
         name: str = "Agent"
     ) -> None:
         """
@@ -30,7 +28,9 @@ class BaseAgent(ABC):
             system_prompt: Prompt système définissant le comportement
             name: Nom de l'agent (pour le logging)
         """
-        pass
+        self.llm = llm_provider
+        self.system_prompt = system_prompt
+        self.name = name
     
     @abstractmethod
     def run(self, input_data: Any) -> dict:
@@ -38,7 +38,7 @@ class BaseAgent(ABC):
         Exécute l'agent avec les données d'entrée.
         
         Args:
-            input_data: Données d'entrée (format dépend de l'agent)
+            input_data: Données d'entrée 
             
         Returns:
             Résultat de l'exécution
@@ -60,12 +60,27 @@ class BaseAgent(ABC):
         Returns:
             Liste de messages au format LLM
         """
-        pass
+        messages = []
+        
+        # Ajouter le system prompt
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        
+        # Ajouter l'historique
+        if history:
+            for msg in history.messages:
+                messages.append(msg.to_llm_format())
+        
+        # Ajouter le message actuel
+        messages.append({"role": "user", "content": user_input})
+        
+        return messages
     
     def _parse_response(self, response: str) -> dict:
         """
         Parse la réponse du LLM.
         
+        Par défaut, retourne simplement la réponse.
         Override cette méthode pour un parsing custom.
         
         Args:
@@ -74,19 +89,47 @@ class BaseAgent(ABC):
         Returns:
             Réponse parsée
         """
-        pass
+        return {"response": response}
     
     def _extract_json_from_response(self, response: str) -> dict:
         """
         Extrait le JSON d'une réponse.
         Utile quand le LLM doit retourner du JSON.
+        
+        Args:
+            response: Réponse contenant du JSON
+            
+        Returns:
+            dict: JSON parsé
+            
+        Raises:
+            json.JSONDecodeError: Si le JSON est invalide
         """
-        pass
+        # Nettoyer les markdown code blocks
+        response_clean = response.strip()
+        
+        # Retirer ```json au début
+        if response_clean.startswith("```json"):
+            response_clean = response_clean[7:]
+        elif response_clean.startswith("```"):
+            response_clean = response_clean[3:]
+        
+        # Retirer ``` à la fin
+        if response_clean.endswith("```"):
+            response_clean = response_clean[:-3]
+        
+        # Parser le JSON
+        try:
+            return json.loads(response_clean.strip())
+        except json.JSONDecodeError as e:
+            print(f"❌ Erreur parsing JSON pour {self.name}: {e}")
+            print(f"Réponse brute: {response[:200]}...")
+            raise
     
     def get_system_prompt(self) -> str:
         """Retourne le prompt système."""
-        pass
+        return self.system_prompt
     
     def update_system_prompt(self, new_prompt: str) -> None:
         """Met à jour le prompt système."""
-        pass
+        self.system_prompt = new_prompt

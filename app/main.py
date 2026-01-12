@@ -7,7 +7,18 @@ Lancer avec: streamlit run app/main.py
 import streamlit as st
 
 
-
+def init_session_state() -> None:
+    """
+    Initialise le session_state de Streamlit.
+    
+    Variables à initialiser:
+    - workflow_simulation: SimulationWorkflow
+    - workflow_interactive: InteractiveWorkflow
+    - metrics_aggregator: MetricsAggregator
+    - current_conversation: list
+    - current_result: TriageResult | None
+    """
+    pass
 
 
 def load_components():

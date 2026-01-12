@@ -104,14 +104,16 @@ class BaseLLMProvider(ABC):
         pass
     
     def calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
-        """
-        Calcule le coût d'une requête.
-        
-        Args:
-            input_tokens: Nombre de tokens en entrée
-            output_tokens: Nombre de tokens en sortie
+            """
+            Calcule le coût d'une requête.
             
-        Returns:
-            Coût en dollars
-        """
-        pass
+            Args:
+                input_tokens: Nombre de tokens en entrée
+                output_tokens: Nombre de tokens en sortie
+                
+            Returns:
+                Coût en dollars
+            """
+            costs = self.get_cost_per_token()
+            total_cost = (input_tokens * costs["input"]) + (output_tokens * costs["output"])
+            return round(total_cost, 6) 

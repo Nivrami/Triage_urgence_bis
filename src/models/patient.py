@@ -14,13 +14,13 @@ from typing import Optional
 import uuid
 
 
-class GravityLevel(Enum):
+
+
+
+class GravityLevel(Enum):     
     """
     Niveaux de gravité du triage.
     
-    JUSTIFIER: Pourquoi ces 4 niveaux?
-    - Standard utilisé dans les urgences françaises
-    - Correspond aux ressources fournies dans le projet
     """
     GRIS = "GRIS"    # Ne nécessite pas les urgences
     VERT = "VERT"    # Non vital, non urgent
@@ -30,15 +30,27 @@ class GravityLevel(Enum):
     @classmethod
     def from_string(cls, value: str) -> "GravityLevel":
         """Convertit une string en GravityLevel."""
-        pass
+        return cls[value.upper()] 
     
     def to_color_code(self) -> str:
         """Retourne le code couleur hexadécimal."""
-        pass
+        color_map = {
+            "GRIS": "#808080",   # Gris
+            "VERT": "#008000",   # Vert
+            "JAUNE": "#FFFF00",  # Jaune
+            "ROUGE": "#FF0000"   # Rouge
+        }
+        return color_map[self.value]   
     
     def get_description(self) -> str:
-        """Retourne la description du niveau."""
-        pass
+        """Retourne une description textuelle du niveau de gravité.""" 
+        descriptions = {
+            "GRIS": "Ne nécessite pas les urgences",
+            "VERT": "Non vital, non urgent",
+            "JAUNE": "Non vital mais urgent",
+            "ROUGE": "Potentiellement vital et urgent" }    
+        return descriptions[self.value]
+        
 
 
 class Constantes(BaseModel):
@@ -51,7 +63,7 @@ class Constantes(BaseModel):
     - SpO2: >95%
     - TA: 120/80 mmHg
     - Température: 36.5-37.5°C
-    """
+    """ 
     fc: Optional[int] = Field(default=None, description="Fréquence cardiaque (bpm)")
     fr: Optional[int] = Field(default=None, description="Fréquence respiratoire (/min)")
     spo2: Optional[int] = Field(default=None, description="Saturation O2 (%)")
@@ -61,21 +73,50 @@ class Constantes(BaseModel):
     
     def is_complete(self) -> bool:
         """Vérifie si toutes les constantes sont renseignées."""
-        pass
-    
+        if (self.fc is not None and
+            self.fr is not None and
+            self.spo2 is not None and
+            self.ta_systolique is not None and
+            self.ta_diastolique is not None and
+            self.temperature is not None):
+            return True
+        return False  
+        
     def get_missing_fields(self) -> list[str]:
         """Retourne la liste des constantes manquantes."""
-        pass
+        missing = []
+        if self.fc is None:
+            missing.append("fc")
+        if self.fr is None:
+            missing.append("fr")
+        if self.spo2 is None:
+            missing.append("spo2")
+        if self.ta_systolique is None:
+            missing.append("ta_systolique")
+        if self.ta_diastolique is None:
+            missing.append("ta_diastolique")
+        if self.temperature is None: 
+            missing.append("temperature")
+        return missing
+        
     
     def to_feature_vector(self) -> list[float]:
         """
         Convertit en vecteur numérique pour le ML.
-        Remplace les None par des valeurs par défaut ou -1.
+        Remplace les None par -1.
         """
-        pass
+        vector = []
+        vector.append(self.fc if self.fc is not None else -1)
+        vector.append(self.fr if self.fr is not None else -1)
+        vector.append(self.spo2 if self.spo2 is not None else -1)
+        vector.append(self.ta_systolique if self.ta_systolique is not None else -1)
+        vector.append(self.ta_diastolique if self.ta_diastolique is not None else -1)
+        vector.append(self.temperature if self.temperature is not None else -1)
+        return vector
     
     def has_critical_values(self) -> bool:
         """Vérifie si des valeurs sont critiques (hors normes)."""
+        #  
         pass
     
     def get_anomalies(self) -> list[str]:
@@ -86,7 +127,7 @@ class Constantes(BaseModel):
 class Patient(BaseModel):
     """Modèle complet d'un patient aux urgences."""
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))  # Identifiant unique du patient 
     prenom: Optional[str] = None
     nom: Optional[str] = None
     age: Optional[int] = None
@@ -108,28 +149,75 @@ class Patient(BaseModel):
         """
         Vérifie si on a assez d'informations pour classifier.
         Minimum requis: au moins 1 symptôme.
-        """
-        pass
+        """  
+        if len(self.symptomes_exprimes) > 0:
+            return True
+        return False
     
     def get_completeness_score(self) -> float:
         """
         Retourne un score de complétude des informations (0-1).
         Utile pour décider si continuer l'entretien.
         """
-        pass
+        total_fields = 6  # Nombre total de champs à vérifier
+        filled_fields = 0
+        if self.prenom is not None:
+            filled_fields += 1
+        if self.nom is not None:
+            filled_fields += 1
+        if self.age is not None:
+            filled_fields += 1
+        if self.sexe is not None:
+            filled_fields += 1
+        if len(self.symptomes_exprimes) > 0:
+            filled_fields += 1
+        if self.constantes is not None and self.constantes.is_complete():
+            filled_fields += 1
+        return filled_fields / total_fields 
+        
     
     def get_missing_critical_info(self) -> list[str]:
         """Retourne les informations critiques manquantes."""
-        pass
+        missing = []
+        if len(self.symptomes_exprimes) == 0:
+            missing.append("symptomes_exprimes")
+        if self.constantes is None or not self.constantes.is_complete():
+            missing.append("constantes")
+        return missing 
     
     def to_dict(self) -> dict:
         """Sérialisation en dictionnaire."""
-        pass
+        return self.dict() 
     
     def to_summary_string(self) -> str:
-        """Résumé textuel pour injection dans un prompt."""
-        pass
+        """Résumé textuel pour injection dans un prompt.""" 
+        summary = f"Patient ID: {self.id}\n"
+        if self.prenom:
+            summary += f"Prénom: {self.prenom}\n"
+        if self.nom:
+            summary += f"Nom: {self.nom}\n"
+        if self.age:
+            summary += f"Âge: {self.age}\n"
+        if self.sexe:
+            summary += f"Sexe: {self.sexe}\n"
+        if self.symptomes_exprimes:
+            summary += f"Symptômes: {', '.join(self.symptomes_exprimes)}\n"
+        if self.constantes:
+            summary += "Constantes:\n"
+            if self.constantes.fc is not None:
+                summary += f"  - FC: {self.constantes.fc} bpm\n"
+            if self.constantes.fr is not None:
+                summary += f"  - FR: {self.constantes.fr} /min\n"
+            if self.constantes.spo2 is not None:
+                summary += f"  - SpO2: {self.constantes.spo2} %\n"
+            if self.constantes.ta_systolique is not None and self.constantes.ta_diastolique is not None:
+                summary += f"  - TA: {self.constantes.ta_systolique}/{self.constantes.ta_diastolique} mmHg\n"
+            if self.constantes.temperature is not None:
+                summary += f"  - Température: {self.constantes.temperature} °C\n"
+        return summary
+        
     
     def merge_with(self, other_data: dict) -> "Patient":
         """Fusionne avec de nouvelles données extraites."""
-        pass
+        pass  
+  

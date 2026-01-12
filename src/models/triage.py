@@ -13,7 +13,7 @@ class TriageResult(BaseModel):
     
     patient_id: str
     gravity_level: GravityLevel
-    confidence: float = Field(ge=0, le=1)
+    confidence: float = Field(ge=0, le=1)  
     
     # Explications
     reasoning: str = Field(description="Explication du choix de gravité")
