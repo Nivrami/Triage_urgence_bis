@@ -4,8 +4,7 @@ Page 1: Simulation automatique.
 Dialogue automatique entre agent de triage et patient simulé.
 """
 
-import streamlit as st
-
+import streamlit as st     
 
 def render_simulation_page() -> None:
     """
@@ -46,7 +45,7 @@ def render_conversation_display(messages: list[dict]) -> None:
     - Messages patient à droite (gris)
     - Timestamps discrets
     """
-    pass
+    pass    
 
 
 def render_control_buttons() -> str:
@@ -56,7 +55,7 @@ def render_control_buttons() -> str:
     Returns:
         Action sélectionnée ("start", "step", "run_all", "reset")
     """
-    pass
+    pass  
 
 
 def render_result_card(result) -> None:
