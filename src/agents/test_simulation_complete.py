@@ -19,20 +19,20 @@ def run_complete_simulation(pathology_description: str):
         pathology_description: Description de la pathologie
     """
     print("=" * 70)
-    print("🏥 SIMULATION DE TRIAGE AUX URGENCES")
+    print(" SIMULATION DE TRIAGE AUX URGENCES")
     print("=" * 70)
     
     # 1. Initialiser le LLM
-    print("\n🔧 Initialisation du LLM Mistral...")
+    print("\n Initialisation du LLM Mistral...")
     llm = LLMFactory.create("mistral", "mistral-small-latest")
-    print("✅ LLM prêt")
+    print(" LLM prêt")
     
     # 2. Générer le patient
-    print(f"\n📝 Génération du patient : {pathology_description}")
+    print(f"\n Génération du patient : {pathology_description}")
     generator = PatientGenerator(llm)
     patient = generator.generate_from_description(pathology_description)
     
-    print(f"\n👤 PATIENT GÉNÉRÉ :")
+    print(f"\n PATIENT GÉNÉRÉ :")
     print(f"   Nom : {patient.prenom} {patient.nom}")
     print(f"   Âge : {patient.age} ans ({patient.sexe})")
     print(f"   Symptômes : {', '.join(patient.symptomes_exprimes)}")
@@ -43,18 +43,18 @@ def run_complete_simulation(pathology_description: str):
     print(f"   Depuis : {patient.duree_symptomes}")
     
     # 3. Créer les agents
-    print("\n🤖 Création des agents...")
+    print("\n Création des agents...")
     patient_simulator = PatientSimulator(llm, patient)
     nurse = NurseAgent(llm, max_questions=6)
-    print("✅ Agents prêts")
+    print(" Agents prêts")
     
     # 4. Plainte initiale
     print("\n" + "=" * 70)
-    print("💬 DÉBUT DE LA CONSULTATION")
+    print(" DÉBUT DE LA CONSULTATION")
     print("=" * 70)
     
     initial_complaint = patient_simulator.get_initial_complaint()
-    print(f"\n🤒 Patient arrive :")
+    print(f"\n Patient arrive :")
     print(f"   {initial_complaint}")
     
     conversation = ConversationHistory()
@@ -65,7 +65,7 @@ def run_complete_simulation(pathology_description: str):
     while nurse.should_continue():
         # Infirmier pose une question
         question = nurse.ask_next_question()
-        print(f"\n👨‍⚕️ Infirmier (Q{question_num}) :")
+        print(f"\n Infirmier (Q{question_num}) :")
         print(f"   {question}")
         
         conversation.add_user_message(question)
@@ -73,7 +73,7 @@ def run_complete_simulation(pathology_description: str):
         
         # Patient répond
         response = patient_simulator.respond(question)
-        print(f"\n🤒 Patient :")
+        print(f"\n Patient :")
         print(f"   {response}")
         
         conversation.add_assistant_message(response)

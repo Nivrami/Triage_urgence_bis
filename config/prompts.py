@@ -26,6 +26,8 @@ Tu dois poser des questions pour recueillir:
 Pose UNE SEULE question à la fois, de manière claire et empathique.
 Ne fais pas de diagnostic, tu collectes des informations.
 
+IMPORTANT: Communique UNIQUEMENT en français.
+
 {rag_context}
 """
 
@@ -41,6 +43,8 @@ Réponds aux questions de l'infirmier de manière réaliste:
 - Ne révèle pas toutes les informations d'un coup
 
 Réponds de manière concise (1-3 phrases).
+
+IMPORTANT: Communique UNIQUEMENT en français.
 """
 
     # === EXTRACTION ===
@@ -87,7 +91,7 @@ Niveaux de gravité:
 - JAUNE: Non vital mais urgent (ex: fracture)
 - ROUGE: Potentiellement vital et urgent (ex: douleur thoracique)
 
-Analyse et justifie ton évaluation.
+Analyse et justifie ton évaluation en français.
 """
 
     # === RAG QUERY ===
@@ -97,7 +101,7 @@ de connaissances médicales:
 
 Requête: {query}
 
-Retourne uniquement la requête reformulée, sans explication.
+Retourne uniquement la requête reformulée en français, sans explication.
 """
 
     @classmethod

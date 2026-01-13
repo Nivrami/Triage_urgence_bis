@@ -6,7 +6,7 @@ Orchestre le dialogue entre l'agent de triage et le patient simulé.
 
 from typing import Optional
 from ..agents.triage_agent import TriageAgent
-from ..agents.patient_simulator import PatientSimulator
+from ..agents.patient_generator import PatientSimulator
 from ..metrics.metrics_aggregator import MetricsAggregator
 from ..models.patient import Patient, GravityLevel
 from ..models.conversation import ConversationHistory
