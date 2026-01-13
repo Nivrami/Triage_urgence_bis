@@ -10,7 +10,7 @@ import streamlit as st
 def init_session_state() -> None:
     """
     Initialise le session_state de Streamlit.
-    
+
     Variables à initialiser:
     - workflow_simulation: SimulationWorkflow
     - workflow_interactive: InteractiveWorkflow
@@ -24,13 +24,13 @@ def init_session_state() -> None:
 def load_components():
     """
     Charge tous les composants (avec cache Streamlit).
-    
+
     Utiliser @st.cache_resource pour:
     - LLM Provider
     - Embedding Provider
     - Vector Store
     - Classifier (modèle ML)
-    
+
     Returns:
         Dict avec tous les composants initialisés
     """
@@ -50,7 +50,7 @@ def render_sidebar() -> None:
 def main() -> None:
     """
     Fonction principale.
-    
+
     Structure:
     1. Configuration de la page
     2. Initialisation du state
