@@ -7,7 +7,9 @@ Dialogue automatique entre agent de triage et patient simulé.
 
 import streamlit as st
 import sys
+import json
 from pathlib import Path
+from typing import Optional, List, Dict
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
@@ -404,6 +406,76 @@ def render_entry_forms():
                     "tas": tas, "tad": tad, "spo2": spo2
                 }
                 st.toast("Constantes enregistrées")
+def extract_symptoms_from_history() -> Optional[Dict]:
+    """
+    Analyse la conversation avec le LLM pour extraire les symptômes 
+    dans un format exploitable (JSON).
+    """
+    if not st.session_state.llm or not st.session_state.conversation_history:
+        return None
+
+    # Préparation de l'historique pour le prompt
+    history_text = ""
+    for msg in st.session_state.conversation_history:
+        role = "Patient" if msg["role"] == "patient" else "Infirmier"
+        history_text += f"{role}: {msg['content']}\n"
+
+    prompt = f"""
+    Analyse la conversation médicale suivante entre un infirmier de triage et un patient.
+    Extrait les symptômes mentionnés par le patient sous forme de liste structurée.
+    
+    Format de sortie attendu (JSON uniquement) :
+    {{
+        "symptomes_principaux": ["symptome1", "symptome2"],
+        "localisation": "zone géographique du corps",
+        "intensite_douleur": "0-10 ou inconnue",
+        "duree": "depuis combien de temps",
+        "facteurs_aggravants": ["facteur1"]
+    }}
+
+    Conversation :
+    {history_text}
+    """
+
+    try:
+        # Utilisation du LLM pour l'extraction
+        response = st.session_state.llm.generate(prompt)
+        # Nettoyage sommaire pour s'assurer de n'avoir que le JSON
+        json_start = response.find('{')
+        json_end = response.rfind('}') + 1
+        return json.loads(response[json_start:json_end])
+    except Exception as e:
+        st.error(f"Erreur lors de l'extraction des symptômes : {e}")
+        return None
+
+def render_analysis_section(): #extrait les éléments indicatifs d'une pathologie de la simulation et les stocke dans un fichier JSON
+    """Affiche les résultats de l'analyse LLM une fois la simulation finie."""
+    if st.session_state.simulation_complete:
+        st.divider()
+        st.subheader("📋 Analyse Automatique des Symptômes")
+        
+        if st.button("🔍 Extraire les symptômes pour classification"):
+            with st.spinner("Analyse du dialogue en cours..."):
+                extracted_data = extract_symptoms_from_history()
+                if extracted_data:
+                    st.session_state.extracted_symptoms = extracted_data
+            
+        if "extracted_symptoms" in st.session_state:
+            data = st.session_state.extracted_symptoms
+            
+            # Affichage formaté pour l'utilisateur
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("**Symptômes détectés :**")
+                for s in data.get("symptomes_principaux", []):
+                    st.markdown(f"- {s}")
+            with col2:
+                st.write(f"**Localisation :** {data.get('localisation', 'N/A')}")
+                st.write(f"**Intensité :** {data.get('intensite_douleur', 'N/A')}")
+            
+            # Code exploitable par un algorithme
+            st.info("💾 Format JSON prêt pour l'algorithme de classification :")
+            st.json(data)
 
 
 
@@ -432,6 +504,9 @@ def render_simulation_page() -> None:
 
     # Traiter les actions
     if action == "start" and pathology_description:
+        # Nettoyer l'ancienne analyse si nouveau démarrage
+        if "extracted_symptoms" in st.session_state:
+            del st.session_state.extracted_symptoms
         start_simulation(pathology_description)
         st.rerun()
     elif action == "step":
@@ -439,8 +514,11 @@ def render_simulation_page() -> None:
         st.rerun()
     elif action == "run_all":
         run_all_simulation()
+        st.rerun()
     elif action == "reset":
         reset_simulation()
+        if "extracted_symptoms" in st.session_state:
+            del st.session_state.extracted_symptoms
         st.rerun()
     elif action == "start" and not pathology_description:
         st.warning("⚠️ Veuillez saisir une description de cas médical.")
@@ -459,6 +537,9 @@ def render_simulation_page() -> None:
     if st.session_state.simulation_started:
         st.divider()
         render_simulation_metrics()
+        
+    # Analyse et Extraction
+    render_analysis_section()
 
     # Message de fin
     if st.session_state.simulation_complete:
