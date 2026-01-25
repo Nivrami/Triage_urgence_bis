@@ -221,27 +221,6 @@ def render_patient_profile_selector() -> Optional[str]:
 
 
 def render_conversation_display(messages: list[dict]) -> None:
-<<<<<<< HEAD
-    """
-    Affiche la conversation en cours.
-    
-    Style:
-    - Messages agent à gauche (bleu)
-    - Messages patient à droite (gris)
-    - Timestamps discrets
-    """
-    pass    
-
-
-def render_control_buttons() -> str:
-    """
-    Boutons de contrôle de la simulation.
-    
-    Returns:
-        Action sélectionnée ("start", "step", "run_all", "reset")
-    """
-    pass  
-=======
     """Affiche la conversation en cours."""
     if not messages:
         st.info("💬 La conversation apparaîtra ici une fois démarrée.")
@@ -261,7 +240,7 @@ def render_control_buttons() -> str:
                 st.markdown(f"**Question {q_num}:**\n\n{msg['content']}")
 
 
-def render_control_buttons() -> None:
+def render_control_buttons() -> Optional[str]:
     """Boutons de contrôle de la simulation."""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -296,7 +275,6 @@ def render_control_buttons() -> None:
             return "reset"
 
     return None
->>>>>>> baf7df4a174ffa2300ff2aa35683dcf6d2864393
 
 
 def render_patient_card(patient) -> None:
