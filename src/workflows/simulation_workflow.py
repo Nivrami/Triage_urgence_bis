@@ -3,11 +3,18 @@ Workflow de simulation AMÉLIORÉ avec questions pertinentes
 """
 
 from typing import Optional
+<<<<<<< HEAD
 from ..agents.patient_generator import PatientGenerator
 from ..agents.patient_simulator import PatientSimulator
 from ..agents.nurse_agent import NurseAgent
 from ..agents.conversation_analyzer import ConversationAnalyzer
 from ..llm.base_llm import BaseLLMProvider
+=======
+from ..agents.triage_agent import TriageAgent
+from ..agents.patient_generator import PatientSimulator
+from ..metrics.metrics_aggregator import MetricsAggregator
+from ..models.patient import Patient, GravityLevel
+>>>>>>> 8333cfe41d1ce24c8d88770cb71036685bf17f20
 from ..models.conversation import ConversationHistory
 
 class SimulationWorkflow:
