@@ -1,203 +1,129 @@
-"""
-Agent infirmier qui mène l'entretien de triage.
-
-Pose des questions pertinentes pour évaluer le patient.
-"""
-
 from typing import Optional
 from .base_agent import BaseAgent
 from ..llm.base_llm import BaseLLMProvider
 from ..models.conversation import ConversationHistory
 
-
 class NurseAgent(BaseAgent):
-    """
-    Agent infirmier qui pose des questions de triage.
-    
-    Suit une méthodologie de triage :
-    1. Plainte principale
-    2. Caractérisation (où, depuis quand, comment)
-    3. Symptômes associés
-    4. Antécédents
-    5. Évaluation gravité
-    """
-    
-    def __init__(
-        self,
-        llm_provider: BaseLLMProvider,
-        max_questions: int = 8
-    ):
-        """
-        Initialise l'agent infirmier.
-        
-        Args:
-            llm_provider: Provider LLM
-            max_questions: Nombre maximum de questions à poser
-        """
-        system_prompt = """Tu es un infirmier expérimenté aux urgences qui fait le triage des patients.
+    """Agent infirmier pour obtenir toutes les infos ML avec questions PERTINENTES."""
 
-**TES OBJECTIFS :**
-1. Identifier la plainte principale
-2. Caractériser les symptômes (localisation, intensité, évolution)
-3. Rechercher les signes de gravité (RED FLAGS)
-4. Connaître les antécédents pertinents
-5. Évaluer l'urgence de la prise en charge
+    def __init__(self, llm_provider: BaseLLMProvider, max_questions: int = 30):
+        system_prompt = """Tu es un infirmier expérimenté aux urgences spécialisé en triage.
 
-**MÉTHODOLOGIE DE TRIAGE :**
+OBJECTIF : Évaluer la gravité du cas en posant des questions PERTINENTES et MÉDICALES.
 
-**Phase 1 - Plainte principale :**
-- "Bonjour, que se passe-t-il aujourd'hui ?"
-- Écouter la plainte
+RÈGLES STRICTES :
+1. Une seule question courte à la fois
+2. Questions ADAPTÉES aux symptômes du patient
+3. NE JAMAIS demander âge/sexe si déjà mentionnés dans la conversation
+4. Approfondis les symptômes : intensité, localisation, durée, évolution
+5. Cherche les signes de gravité (difficultés respiratoires, douleur thoracique, confusion, etc.)
+6. Demande les antécédents PERTINENTS selon les symptômes
+7. Sois LOGIQUE : chaque question suit naturellement la réponse précédente
 
-**Phase 2 - Caractérisation :**
-- "Depuis quand ?" (temporalité)
-- "Où exactement ?" (localisation)
-- "Comment ça a commencé ?" (mode de début)
-- "Est-ce que ça s'aggrave ?" (évolution)
+EXEMPLES DE BONNES QUESTIONS SELON LES SYMPTÔMES :
 
-**Phase 3 - Symptômes associés :**
-- "Avez-vous d'autres symptômes ?"
-- Recherche systématique selon l'organe
+Douleur thoracique :
+- "Où exactement avez-vous mal dans la poitrine ?"
+- "La douleur se propage-t-elle dans le bras, la mâchoire ou le dos ?"
+- "Sur 10, quelle est l'intensité de la douleur ?"
+- "Avez-vous des difficultés à respirer ?"
+- "Ressentez-vous des sueurs ou des nausées ?"
 
-**Phase 4 - Antécédents :**
-- "Avez-vous des antécédents médicaux ?"
-- "Prenez-vous des médicaments ?"
-- "Des allergies ?"
+Douleur abdominale :
+- "Où exactement avez-vous mal dans le ventre ?"
+- "La douleur est-elle constante ou par vagues ?"
+- "Avez-vous de la fièvre ?"
+- "Vos selles sont-elles normales ?"
 
-**RED FLAGS À RECHERCHER :**
-- Douleur thoracique → Infarctus ?
-- Difficulté respiratoire → Détresse respiratoire ?
-- Troubles neurologiques → AVC ?
-- Fièvre élevée + confusion → Sepsis ?
-- Hémorragie → Choc hémorragique ?
+Difficultés respiratoires :
+- "Depuis quand avez-vous du mal à respirer ?"
+- "Est-ce que ça s'aggrave à l'effort ou au repos ?"
+- "Avez-vous de la toux ? Si oui, avec des crachats ?"
+- "Avez-vous de la fièvre ?"
 
-**RÈGLES :**
-- Une seule question à la fois
-- Questions claires et directes
-- Adapter selon les réponses
-- Pas de question répétée
-- Rester professionnel mais empathique
+Traumatisme :
+- "Comment l'accident est-il arrivé ?"
+- "Avez-vous perdu connaissance ?"
+- "Pouvez-vous bouger normalement ?"
+
+INTERDICTIONS :
+❌ "Quel âge avez-vous ?" (si déjà dit)
+❌ "Êtes-vous un homme ou une femme ?" (évident)
+❌ Questions génériques non liées aux symptômes
 """
-        
-        super().__init__(
-            llm_provider=llm_provider,
-            system_prompt=system_prompt,
-            name="NurseAgent"
-        )
-        
+        super().__init__(llm_provider, system_prompt, name="NurseAgent")
         self.max_questions = max_questions
         self.questions_asked = 0
         self.conversation = ConversationHistory()
-    
-    def run(self, input_data: ConversationHistory) -> dict:
-        """
-        Génère la prochaine question.
-        
-        Args:
-            input_data: Historique de conversation
-            
-        Returns:
-            dict avec "question": str, "should_stop": bool
-        """
-        self.conversation = input_data
-        question = self.ask_next_question()
-        should_stop = not self.should_continue()
-        
-        return {
-            "question": question,
-            "should_stop": should_stop
-        }
-    
-    def ask_next_question(self) -> str:
-        """
-        Génère la prochaine question à poser.
-        
-        Returns:
-            str: Question à poser au patient
-        """
-        if self.questions_asked == 0:
-            # Première question standard
-            self.questions_asked += 1
-            return "Bonjour, que se passe-t-il aujourd'hui ?"
-        
-        # Questions suivantes générées dynamiquement
-        prompt = f"""**HISTORIQUE DE LA CONVERSATION :**
-{self.conversation.get_full_text()}
+        self.asked_topics = set()  # Pour éviter répétitions
 
-**CONTEXTE :**
-- Tu as déjà posé {self.questions_asked} question(s)
-- Tu peux poser encore {self.max_questions - self.questions_asked} question(s)
+    def run(self, input_data):  
+        return super().run(input_data)
 
-**TA MISSION :**
-Génère LA PROCHAINE question la plus pertinente pour :
-1. Compléter l'évaluation du patient
-2. Identifier les signes de gravité
-3. Obtenir les informations manquantes critiques
-
-**RÈGLES :**
-- UNE SEULE question claire et directe
-- Adapte-toi à ce qui a déjà été dit
-- Ne répète JAMAIS une question déjà posée
-- Priorise les informations critiques (depuis quand, où, gravité)
-
-**EXEMPLES DE BONNES QUESTIONS :**
-- "Depuis quand avez-vous ces symptômes ?"
-- "Où avez-vous mal exactement ?"
-- "La douleur est-elle constante ou par moments ?"
-- "Avez-vous d'autres symptômes : nausées, vomissements, fièvre ?"
-- "Avez-vous des antécédents médicaux ?"
-- "Prenez-vous des médicaments régulièrement ?"
-
-**RÉPONDS UNIQUEMENT AVEC LA QUESTION (pas de préambule) :**
-"""
+    def generate_contextual_question(self, conversation_history: ConversationHistory) -> str:
+        """Génère une question INTELLIGENTE basée sur le contexte."""
         
-        messages = [{"role": "user", "content": prompt}]
+        # Construire le contexte
+        context = "CONVERSATION JUSQU'ICI :\n"
+        for msg in conversation_history.messages[-6:]:  # Derniers 6 messages
+            role = "Infirmier" if msg.role.value == "user" else "Patient"
+            context += f"{role}: {msg.content}\n"
         
-        question = self.llm.generate(
-            messages=messages,
+        prompt = f"""{context}
+
+Tu es l'infirmier. Quelle est la PROCHAINE question la plus PERTINENTE pour évaluer la gravité ?
+
+RÈGLES :
+- UNE SEULE question courte
+- Adaptée aux symptômes du patient
+- Approfondit un aspect médical important
+- NE RÉPÈTE PAS ce qui a déjà été demandé
+- Cherche les signes de gravité
+
+Question :"""
+
+        response = self.llm.generate(
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=100
-        )
+        ).strip()
         
-        # Nettoyer la question
-        question = question.strip()
-        # Enlever les guillemets si présents
-        question = question.strip('"').strip("'")
-        # S'assurer qu'il y a un point d'interrogation
-        if not question.endswith('?'):
-            question += ' ?'
+        # Nettoyer
+        response = response.replace("**", "").replace("*", "")
+        response = response.strip('"').strip("'")
+        
+        # Enlever préfixes type "Question :", "Infirmier :"
+        prefixes = ["Question :", "Infirmier :", "Nurse:", "Q:"]
+        for prefix in prefixes:
+            if response.startswith(prefix):
+                response = response[len(prefix):].strip()
         
         self.questions_asked += 1
-        
-        return question
-    
+        return response
+
+    def ask_basic_info_question(self, field: str) -> str:
+        """Questions de base SEULEMENT si vraiment nécessaires."""
+        mapping = {
+            "age": "Quel âge avez-vous ?",
+            "sexe": "Êtes-vous un homme ou une femme ?",
+            "antecedents": "Avez-vous des problèmes de santé connus ou des traitements en cours ?"
+        }
+        self.questions_asked += 1
+        return mapping.get(field, "Pouvez-vous préciser ?")
+
     def should_continue(self) -> bool:
-        """
-        Détermine si on doit continuer à poser des questions.
-        
-        Returns:
-            bool: True si on doit continuer, False sinon
-        """
         return self.questions_asked < self.max_questions
-    
+
     def add_to_history(self, role: str, content: str) -> None:
-        """
-        Ajoute un message à l'historique.
-        
-        Args:
-            role: "nurse" ou "patient"
-            content: Contenu du message
-        """
         if role == "nurse":
             self.conversation.add_user_message(content)
-        elif role == "patient":
+        else:
             self.conversation.add_assistant_message(content)
-    
+
     def get_conversation_history(self) -> ConversationHistory:
-        """Retourne l'historique de conversation."""
         return self.conversation
-    
+
     def reset(self) -> None:
-        """Réinitialise l'agent pour une nouvelle consultation."""
         self.questions_asked = 0
         self.conversation = ConversationHistory()
+        self.asked_topics = set() 

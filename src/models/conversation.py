@@ -9,14 +9,14 @@ from typing import Optional
 import uuid
 
 
-class MessageRole(Enum):
+class MessageRole(Enum):  
     """Rôles possibles dans une conversation."""
     SYSTEM = "system"   # Message système
     USER = "user"      # Message utilisateur (patient)
-    ASSISTANT = "assistant"  # Message assistant (infirmier/agent) 
+    ASSISTANT = "assistant"  # Message assistant (infirmier/agent)   
     
     def to_claude_format(self) -> str:
-        """Format pour l'API Claude."""
+        
         return self.value
 
 
@@ -103,7 +103,7 @@ class ConversationHistory(BaseModel):
     def get_turn_count(self) -> int:
         """Retourne le nombre de tours de dialogue."""
         user_messages = len([m for m in self.messages if m.role == MessageRole.USER])
-        return user_messages 
+        return user_messages   
     
     def clear(self) -> None:
         """Vide l'historique."""

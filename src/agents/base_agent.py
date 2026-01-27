@@ -42,7 +42,7 @@ class BaseAgent(ABC):
             
         Returns:
             Résultat de l'exécution
-        """
+        """   
         pass
     
     def _build_messages(

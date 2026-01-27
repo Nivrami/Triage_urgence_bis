@@ -93,7 +93,6 @@ Niveaux de gravité:
 
 Analyse et justifie ton évaluation en français.
 """
-
     # === RAG QUERY ===
     RAG_QUERY_REWRITE: str = """
 Reformule la requête suivante pour optimiser la recherche dans une base 
