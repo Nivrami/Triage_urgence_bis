@@ -2,18 +2,16 @@
 Test du workflow - SIMPLE
 """
 
-<<<<<<< HEAD
 from src.llm.llm_factory import LLMFactory
 from src.workflows.simulation_workflow import SimulationWorkflow
 import json
-=======
 from typing import Optional
 #from ..agents.triage_agent import PatientSimulator
 from ..metrics.metrics_aggregator import MetricsAggregator
 from ..models.patient import Patient
 from ..models.conversation import ConversationHistory, MessageRole
 from ..models.triage import TriageResult
->>>>>>> 8333cfe41d1ce24c8d88770cb71036685bf17f20
+
 
 def test_simulation():
     """Test simple."""
