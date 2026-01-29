@@ -44,14 +44,14 @@ with col1:
 
 with col2:
     st.markdown("""
-    ### 👤 Mode interactif (à venir)
+    ### 👤 Mode interactif 
     
     - Jouez le rôle de l'infirmier
     - Posez vos propres questions
     - Le patient IA répond en temps réel
-    - Recommandations de triage
+    - Recommandations de triage  
     
-    🚧 **En développement**
+   
     """)
 
 st.markdown("""
@@ -77,12 +77,7 @@ Sélectionnez une page dans la barre latérale pour commencer ! 👈
 # Sidebar
 with st.sidebar:
     st.markdown("""
-    ### 📖 Guide rapide
-    
-    1. **Génération** : Créez des conversations automatiques
-    2. **Export** : Téléchargez les données en JSON
-    3. **ML** : Utilisez les données pour entraîner un modèle
-    
+   
     ---
     
     ### ℹ️ À propos

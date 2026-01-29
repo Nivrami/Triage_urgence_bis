@@ -9,7 +9,6 @@ from ..agents.patient_simulator import PatientSimulator
 from ..agents.nurse_agent import NurseAgent
 from ..agents.conversation_analyzer import ConversationAnalyzer
 from ..llm.base_llm import BaseLLMProvider
-from ..metrics.metrics_aggregator import MetricsAggregator
 from ..models.patient import Patient, GravityLevel
 from ..models.conversation import ConversationHistory
 
@@ -84,7 +83,7 @@ class SimulationWorkflow:
                         question = nurse.ask_basic_info_question("sexe")
                     basic_info_collected["sexe"] = True
             
-            # ⭐ SINON : Question contextuelle PERTINENTE
+           
             if not question:
                 question = nurse.generate_contextual_question(self.conversation)
             

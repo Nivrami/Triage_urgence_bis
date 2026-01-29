@@ -76,7 +76,7 @@ with col2:
         with st.spinner("Génération en cours..."):
             try:
                 # Initialiser LLM
-                llm = LLMFactory.create("mistral", "mistral-small-latest")
+                llm = LLMFactory.create("mistral", "mistral-large-latest")
                 workflow = SimulationWorkflow(llm, max_turns=max_turns)
                 
                 # Générer
@@ -85,16 +85,48 @@ with col2:
                 # Capturer stdout pour afficher logs
                 import io
                 from contextlib import redirect_stdout
+                import time
                 
                 log_stream = io.StringIO()
+                start_time = time.time()
+                
                 with redirect_stdout(log_stream):
                     result = workflow.run_simulation(pathology=pathology)
+                
+                duration = time.time() - start_time
+                
+                # Track génération
+                try:
+                    sys.path.insert(0, str(root_path / "src"))
+                    from src.monitoring.metrics_tracker import get_tracker
+                    
+                    tracker = get_tracker()
+                    
+                    # Track latence génération
+                    tracker.track_latency(
+                        component="Generation",
+                        operation="conversation",
+                        duration=duration
+                    )
+                    
+                    # Track appel API LLM (estimation)
+                    # Approximation: ~500 tokens input, ~300 tokens output par conversation
+                    tracker.track_api_call(
+                        service="mistral",
+                        model="mistral-large-latest",
+                        tokens_input=500,
+                        tokens_output=300,
+                        latency=duration,
+                        success=True
+                    )
+                except Exception as track_error:
+                    print(f"Monitoring error: {track_error}")
                 
                 # Sauvegarder
                 st.session_state.current_result = result
                 st.session_state.conversations.append(workflow.export_for_ml())
                 
-                st.success("✅ Conversation générée !")
+                st.success(f"✅ Conversation générée en {duration:.2f}s!")
                 st.rerun()
                 
             except Exception as e:
@@ -105,8 +137,11 @@ with col2:
         status_text = st.empty()
         
         try:
-            llm = LLMFactory.create("mistral", "mistral-small-latest")
+            llm = LLMFactory.create("mistral", "mistral-large-latest")
             workflow = SimulationWorkflow(llm, max_turns=max_turns)
+            
+            import time
+            total_duration = 0
             
             for i in range(10):
                 status_text.text(f"Génération {i+1}/10...")
@@ -116,13 +151,36 @@ with col2:
                 from contextlib import redirect_stdout
                 log_stream = io.StringIO()
                 
+                start_time = time.time()
+                
                 with redirect_stdout(log_stream):
                     result = workflow.run_simulation()
                 
+                duration = time.time() - start_time
+                total_duration += duration
+                
                 st.session_state.conversations.append(workflow.export_for_ml())
                 workflow.reset()
+                
+                # Track chaque génération
+                try:
+                    sys.path.insert(0, str(root_path / "src"))
+                    from src.monitoring.metrics_tracker import get_tracker  
+                    
+                    tracker = get_tracker()
+                    tracker.track_latency("Generation", "conversation", duration)
+                    tracker.track_api_call(
+                        service="mistral",
+                        model="mistral-large-latest",
+                        tokens_input=500,
+                        tokens_output=300,
+                        latency=duration,
+                        success=True
+                    )
+                except:
+                    pass
             
-            st.success("✅ 10 conversations générées !")
+            st.success(f"✅ 10 conversations générées en {total_duration:.1f}s!")
             progress_bar.empty()
             status_text.empty()
             st.rerun()
@@ -284,7 +342,7 @@ if st.session_state.current_result:
         st.markdown("### 💾 Données pour Machine Learning")
         
         # Récupérer les données ML
-        llm = LLMFactory.create("mistral", "mistral-small-latest")
+        llm = LLMFactory.create("mistral", "mistral-large-latest")
         workflow = SimulationWorkflow(llm)
         workflow.original_patient = result['original_patient']
         workflow.extracted_patient = result['extracted_patient']
@@ -312,20 +370,23 @@ if st.session_state.current_result:
         # Charger le modèle
         import pickle
         import numpy as np
+        import time
         
         model_path = root_path / "src" / "models" / "random_forest_simple.pkl"
         
         if not model_path.exists():
-            st.error(f"❌ Modèle non trouvé à : {model_path}")
-            st.info("💡 Entraînez d'abord le modèle avec le notebook `04_train_SIMPLE_model.ipynb`")
+            st.error(f"❌ Modèle non trouvé ")
+            
         else:
             with st.spinner("Chargement du modèle et prédiction..."):
+                start_time = time.time()
+                
                 # Charger modèle
                 with open(model_path, 'rb') as f:
                     clf = pickle.load(f)
                 
                 # Récupérer données ML
-                llm = LLMFactory.create("mistral", "mistral-small-latest")
+                llm = LLMFactory.create("mistral", "mistral-large-latest")
                 workflow = SimulationWorkflow(llm)
                 workflow.original_patient = result['original_patient']
                 workflow.extracted_patient = result['extracted_patient']
@@ -361,6 +422,34 @@ if st.session_state.current_result:
                 prediction = clf.predict(features)[0]
                 probas = clf.predict_proba(features)[0]
                 proba_dict = dict(zip(clf.classes_, probas))
+                
+                duration = time.time() - start_time
+                
+                # Track prédiction ML
+                try:
+                    sys.path.insert(0, str(root_path / "src"))
+                    from src.monitoring.metrics_tracker import get_tracker
+                    
+                    tracker = get_tracker()
+                    
+                    # Track prédiction
+                    tracker.track_prediction(
+                        severity=prediction,
+                        age=age,
+                        sex=sexe[0],
+                        symptoms=[],
+                        red_flags=[],
+                        confidence=max(probas)
+                    )
+                    
+                    # Track latence
+                    tracker.track_latency(
+                        component="Predictor_ML",
+                        operation="predict",
+                        duration=duration
+                    )
+                except:
+                    pass
                 
                 # Affichage résultat
                 colors = {

@@ -22,12 +22,13 @@ langsmith==0.0.77
 # RAG & Embeddings
 # -----------------------------------------------------------------------------
 # Vector Stores
-chromadb==0.4.22               
+chromadb==0.4.22                 
 faiss-cpu==1.7.4               
 
 # Embeddings
 sentence-transformers==2.2.2   
-huggingface-hub==0.20.0        
+huggingface-hub==0.20.0   
+DocumentLoader       
 
 # Document Processing
 pypdf==3.17.4                  
@@ -44,6 +45,7 @@ xgboost==2.0.3                 # Gradient boosting
 pandas==2.1.4                  # Manipulation données
 numpy==1.26.2                  # Calcul numérique
 joblib==1.3.2                  # Sérialisation modèles
+plotly==5.18.0                 # Visualisation données
 
 # -----------------------------------------------------------------------------
 # Interface Web
@@ -73,3 +75,4 @@ pytest-cov==4.1.0              # Coverage tests
 jupyter==1.0.0                 # Notebooks
 ipykernel==6.27.1              # Kernel Jupyter
 mypy==1.7.1                    # Type checking
+
