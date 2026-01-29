@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Optional
 from pathlib import Path
 import json
-
+from .document_loader import DocumentLoader  
 
 class VectorStore:
     """Gère l'indexation et la recherche dans ChromaDB."""
@@ -266,7 +266,7 @@ def build_vector_store(
     Returns:
         VectorStore initialisée
     """
-    from document_loader import DocumentLoader
+    
     
     vector_store = VectorStore(persist_directory=persist_dir)
     
