@@ -1,13 +1,13 @@
 """
 Vector Store - Gestion de la base vectorielle ChromaDB
 """
- 
+
+import chromadb
 from chromadb.config import Settings
+from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Optional
 from pathlib import Path
 import json
-import chromadb  
-from sentence_transformers import SentenceTransformer  
 
 
 class VectorStore:
@@ -38,9 +38,9 @@ class VectorStore:
         )
         
         # Charger le modèle d'embeddings
-        print(f" Chargement modèle embeddings:{embedding_model}")
+        print(f"📥 Chargement modèle embeddings: {embedding_model}")
         self.embedding_model = SentenceTransformer(embedding_model)
-        print(" Modèle chargé")
+        print("✅ Modèle chargé")
         
         # Créer ou récupérer collection
         self.collection_name = collection_name
@@ -52,7 +52,7 @@ class VectorStore:
             # Essayer de récupérer collection existante
             collection = self.client.get_collection(name=self.collection_name)
             print(f"✅ Collection '{self.collection_name}' chargée ({collection.count()} documents)")
-        except: 
+        except:
             # Créer nouvelle collection
             collection = self.client.create_collection(
                 name=self.collection_name,
@@ -94,7 +94,7 @@ class VectorStore:
             ids.append(f"doc_{i}")
         
         # Générer embeddings
-        print(" Génération des embeddings...")
+        print("🧮 Génération des embeddings...")
         embeddings = self.embedding_model.encode(
             documents,
             show_progress_bar=True,
@@ -102,7 +102,7 @@ class VectorStore:
         ).tolist()
         
         # Ajouter à ChromaDB
-        print(" Ajout à ChromaDB...")
+        print("💾 Ajout à ChromaDB...")
         self.collection.add(
             embeddings=embeddings,
             documents=documents,
@@ -254,7 +254,7 @@ def build_vector_store(
     documents_dir: str = "data/rag_document",
     persist_dir: str = "data/vector_db",
     force_rebuild: bool = False
-) -> VectorStore:   
+) -> VectorStore:
     """
     Construit la vector store complète.
     
@@ -264,10 +264,9 @@ def build_vector_store(
         force_rebuild: Si True, reconstruit même si existe
         
     Returns:
-        VectorStore initialisée    
+        VectorStore initialisée
     """
-    from .document_loader import DocumentLoader
-    print(documents_dir)  
+    from document_loader import DocumentLoader
     
     vector_store = VectorStore(persist_directory=persist_dir)
     
@@ -302,7 +301,7 @@ if __name__ == "__main__":
     # Construire vector store
     vector_store = build_vector_store(
         documents_dir="data/rag_document",
-        force_rebuild=False  # True pour reconstruire
+        force_rebuild=True  
     )
     
     # Test recherche
@@ -323,4 +322,4 @@ if __name__ == "__main__":
         print("-" * 70)
         
         context = retriever.retrieve_context(query, top_k=2)
-        print(context[:500] + "...\n")
+        print(context[:500] + "...\n")  
