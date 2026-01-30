@@ -37,7 +37,7 @@ R: "Je fume, j'ai du diabète et de l'hypertension"
 
 #### Critères ROUGE identifiés :
 **Type douleur :** Écrasement, étau (typique)
-**Localisation :** Rétrosternale  
+**Localisation :** Rétrosternale
 **Intensité :** 9/10 (très élevée)
 **Irradiation :** Bras gauche ET mâchoire (TYPIQUE)
 **Signes associés (3/3) :**

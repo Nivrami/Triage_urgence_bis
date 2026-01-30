@@ -4,12 +4,15 @@ from .base_agent import BaseAgent
 from ..llm.base_llm import BaseLLMProvider
 from ..models.patient import Patient, Constantes
 
+
 class PatientGenerator(BaseAgent):
     """Générateur de patient réaliste."""
 
     def __init__(self, llm_provider: BaseLLMProvider):
         system_prompt = "Expert médical. Génère des profils patients réalistes. JSON uniquement."
-        super().__init__(llm_provider=llm_provider, system_prompt=system_prompt, name="PatientGenerator")
+        super().__init__(
+            llm_provider=llm_provider, system_prompt=system_prompt, name="PatientGenerator"
+        )
 
     def run(self, input_data: str) -> dict:
         patient = self.generate_from_description(input_data)
@@ -49,9 +52,7 @@ RÈGLES CONSTANTES (IMPORTANT) :
 JSON uniquement :"""
 
         response = self.llm.generate(
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7, 
-            max_tokens=600
+            messages=[{"role": "user", "content": prompt}], temperature=0.7, max_tokens=600
         )
 
         data = self._extract_json_from_response(response)
@@ -68,7 +69,7 @@ JSON uniquement :"""
             spo2=c.get("spo2", 97),
             ta_systolique=c.get("ta_systolique", 120),
             ta_diastolique=c.get("ta_diastolique", 80),
-            temperature=c.get("temperature", 37.0)
+            temperature=c.get("temperature", 37.0),
         )
 
         patient = Patient(
@@ -79,6 +80,6 @@ JSON uniquement :"""
             symptomes_exprimes=data.get("symptomes_exprimes", []),
             constantes=constantes,
             antecedents=data.get("antecedents", []),
-            duree_symptomes=data.get("duree_symptomes", "depuis quelques heures")
+            duree_symptomes=data.get("duree_symptomes", "depuis quelques heures"),
         )
-        return patient  
+        return patient

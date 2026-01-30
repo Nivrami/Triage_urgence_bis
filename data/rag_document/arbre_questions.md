@@ -8,7 +8,7 @@
 
 ### Questions OBLIGATOIRES (ordre de priorité) :
 
-#### 1. **Localisation** 
+#### 1. **Localisation**
 - "Où exactement avez-vous mal ?"
 - "Pouvez-vous pointer du doigt ?"
 - "La douleur est-elle diffuse ou très localisée ?"
@@ -20,7 +20,7 @@
 
 ---
 
-#### 2. **Caractéristiques de la douleur** 
+#### 2. **Caractéristiques de la douleur**
 - "Comment décririez-vous cette douleur ?"
   * Écrasement / Oppression / Étau
   * Brûlure
@@ -30,8 +30,8 @@
 - "Sur une échelle de 0 à 10, quelle est l'intensité ?"
 
 **Interprétation :**
-- Écrasement/oppression → Infarctus typique 
-- Coup de poignard → Pneumothorax, dissection aortique 
+- Écrasement/oppression → Infarctus typique
+- Coup de poignard → Pneumothorax, dissection aortique
 - Brûlure → RGO possible (mais ne pas écarter infarctus)
 
 ---
@@ -39,9 +39,9 @@
 #### 3. **Irradiation**  CRITIQUE
 - "La douleur se propage-t-elle ailleurs ?"
 - "Ressentez-vous la douleur dans :"
-  * Le bras gauche ? 
-  * La mâchoire ? 
-  * Le dos (entre les omoplates) ? 
+  * Le bras gauche ?
+  * La mâchoire ?
+  * Le dos (entre les omoplates) ?
   * Le cou ?
   * L'épaule ?
 
@@ -53,12 +53,12 @@
 
 #### 4. **Signes associés**  TRÈS IMPORTANT
 - "Avez-vous également :"
-  * Des sueurs (profuses, trempe vêtements) ? 
-  * Des nausées ou vomissements ? 
-  * Des difficultés à respirer / Essoufflement ? 
+  * Des sueurs (profuses, trempe vêtements) ?
+  * Des nausées ou vomissements ?
+  * Des difficultés à respirer / Essoufflement ?
   * Des palpitations (cœur bat vite/irrégulier) ?
   * Des vertiges ou sensation de malaise ?
-  * Une sensation d'angoisse / mort imminente ? 
+  * Une sensation d'angoisse / mort imminente ?
 
 **Signes d'ALERTE (ROUGE) :**
 -  ≥2 signes associés = Urgence vitale probable
@@ -77,8 +77,8 @@
   * Repas
 
 **Interprétation :**
-- Début brutal + intensité maximale = Urgence 
-- >20 minutes malgré repos = Préoccupant 
+- Début brutal + intensité maximale = Urgence
+- >20 minutes malgré repos = Préoccupant
 - Après effort intense = Angor/infarctus possible
 
 ---
@@ -117,7 +117,7 @@
 
 ### Questions OBLIGATOIRES :
 
-#### 1. **Évaluation immédiate** 
+#### 1. **Évaluation immédiate**
 - "Pouvez-vous finir vos phrases normalement ?"
   * Si NON → URGENCE IMMÉDIATE
 - "Arrivez-vous à respirer profondément ?"
@@ -125,7 +125,7 @@
 
 **Test simple :**
 - Demander de compter jusqu'à 10 sans reprendre souffle
-- Si impossible → Dyspnée sévère 
+- Si impossible → Dyspnée sévère
 
 ---
 
@@ -140,27 +140,27 @@
   * Progressivement
 
 **Interprétation :**
-- Début brutal = Embolie, pneumothorax, OAP 
+- Début brutal = Embolie, pneumothorax, OAP
 - Progressif = Infection, asthme
 
 ---
 
 #### 3. **Contexte**
 - "Cela survient :"
-  * Au repos ? 
+  * Au repos ?
   * À l'effort ?
   * En position allongée ?
   * La nuit ?
 
 **Interprétation :**
-- Dyspnée au repos = Plus grave 
+- Dyspnée au repos = Plus grave
 - Orthopnée (allongé) = Insuffisance cardiaque
 
 ---
 
 #### 4. **Signes associés**
 - "Avez-vous :"
-  * Une douleur dans la poitrine ? 
+  * Une douleur dans la poitrine ?
   * De la toux ? (sèche / grasse)
   * Des crachats ? (couleur ?)  si sang
   * De la fièvre ?
@@ -204,7 +204,7 @@
 
 ### Questions OBLIGATOIRES :
 
-#### 1. **Localisation précise** 
+#### 1. **Localisation précise**
 - "Où avez-vous mal exactement ?"
 - Faire pointer du doigt
 
@@ -218,7 +218,7 @@ Bas Droit         |  Bas Gauche
 ```
 
 **Interprétation :**
-- Fosse iliaque droite = Appendicite 
+- Fosse iliaque droite = Appendicite
 - Haut droit = Foie, vésicule
 - Épigastre (centre haut) = Ulcère, pancréas
 
@@ -228,7 +228,7 @@ Bas Droit         |  Bas Gauche
 - "Comment est cette douleur ?"
   * Crampes / Spasmes
   * Brûlure
-  * Coup de couteau / Poignard 
+  * Coup de couteau / Poignard
   * Torsion
 
 - "Est-elle constante ou par vagues ?"
@@ -236,7 +236,7 @@ Bas Droit         |  Bas Gauche
 **Interprétation :**
 - Crampes/coliques = Obstruction possible
 - Brûlure = Ulcère, reflux
-- Coup de poignard = Perforation 
+- Coup de poignard = Perforation
 
 ---
 
@@ -245,18 +245,18 @@ Bas Droit         |  Bas Gauche
 - "Puis-je appuyer doucement sur votre ventre ?"
 
 **Test de défense :**
-- Ventre dur comme planche = Défense → ROUGE 
-- Douleur vive au retrait main = Blumberg → ROUGE 
+- Ventre dur comme planche = Défense → ROUGE
+- Douleur vive au retrait main = Blumberg → ROUGE
 
 ---
 
 #### 4. **Signes associés**
 - "Avez-vous :"
-  * Des vomissements ? Combien ? 
+  * Des vomissements ? Combien ?
   * De la fièvre ?
   * De la diarrhée / constipation ?
-  * Du sang dans les selles ? 
-  * Du sang dans les vomissures ? 
+  * Du sang dans les selles ?
+  * Du sang dans les vomissures ?
   * Des difficultés à uriner ?
 
 **SIGNES D'ALARME :**
@@ -267,12 +267,12 @@ Bas Droit         |  Bas Gauche
 ---
 
 #### 5. **Pour les femmes**
-- "Êtes-vous enceinte ou possiblement enceinte ?" 
+- "Êtes-vous enceinte ou possiblement enceinte ?"
 - "Date des dernières règles ?"
 - "Pertes vaginales anormales ?"
 
 **ALERTE :**
-- Grossesse + douleur abdominale = GEU possible → ROUGE 
+- Grossesse + douleur abdominale = GEU possible → ROUGE
 
 ---
 
@@ -310,7 +310,7 @@ Bas Droit         |  Bas Gauche
 
 ---
 
-#### 2. **Perte de connaissance** 
+#### 2. **Perte de connaissance**
 - "Avez-vous perdu connaissance ?"
 - "Vous souvenez-vous de tout ?"
 
@@ -325,7 +325,7 @@ Bas Droit         |  Bas Gauche
 
 ---
 
-#### 4. **Signes neurologiques** 
+#### 4. **Signes neurologiques**
 - "Maux de tête ?"
 - "Vomissements ?"
 - "Vision trouble ?"
@@ -337,10 +337,10 @@ Bas Droit         |  Bas Gauche
 
 ### Questions OBLIGATOIRES :
 
-#### 1. **Test FAST (AVC)** 
-- **F**ace : "Souriez" → Déviation bouche ? 
-- **A**rms : "Levez les bras" → Un bras chute ? 
-- **S**peech : "Répétez une phrase" → Trouble parole ? 
+#### 1. **Test FAST (AVC)**
+- **F**ace : "Souriez" → Déviation bouche ?
+- **A**rms : "Levez les bras" → Un bras chute ?
+- **S**peech : "Répétez une phrase" → Trouble parole ?
 - **T**ime : Depuis quand ?
 
 **Si 1 seul critère positif → ROUGE → 15**
@@ -349,11 +349,11 @@ Bas Droit         |  Bas Gauche
 
 #### 2. **Symptômes neurologiques**
 - "Avez-vous :"
-  * Perte de force bras/jambe ? 
+  * Perte de force bras/jambe ?
   * Engourdissements ?
-  * Trouble de la vision ? 
+  * Trouble de la vision ?
   * Confusion ?
-  * Maux de tête violents ? 
+  * Maux de tête violents ?
 
 ---
 
@@ -371,14 +371,14 @@ Bas Droit         |  Bas Gauche
 - "Avez-vous :"
   * Frissons ? Sueurs ?
   * Maux de tête ?
-  * Raideur de nuque ? 
+  * Raideur de nuque ?
   * Toux / Difficultés respiratoires ?
   * Douleurs urinaires ?
-  * Éruption cutanée ? 
+  * Éruption cutanée ?
 
 **ALERTE :**
-- Fièvre + raideur nuque + photophobie = Méningite 
-- Fièvre + purpura (taches rouges) = Sepsis 
+- Fièvre + raideur nuque + photophobie = Méningite
+- Fièvre + purpura (taches rouges) = Sepsis
 
 ---
 

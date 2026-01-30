@@ -4,7 +4,7 @@ from .triage import TriageResult
 
 __all__ = [
     "Patient",
-    "Constantes", 
+    "Constantes",
     "GravityLevel",
     "Message",
     "MessageRole",

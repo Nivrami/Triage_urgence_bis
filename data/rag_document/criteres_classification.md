@@ -8,7 +8,7 @@
 
 ### Hiérarchie des critères :
 1. **Urgence vitale** (pronostic vital engagé) → ROUGE
-2. **Urgence vraie** (nécessite soins rapides) → JAUNE  
+2. **Urgence vraie** (nécessite soins rapides) → JAUNE
 3. **Urgence relative** (peut attendre) → VERT
 4. **Pas d'urgence** (médecin traitant) → GRIS
 
@@ -97,7 +97,7 @@
 **OU**
 - Intensité ≥9/10 avec 1 signe associé
 
-**OU**  
+**OU**
 - Douleur déchirante dos + TA asymétrique
 
 **Pathologies évoquées :**

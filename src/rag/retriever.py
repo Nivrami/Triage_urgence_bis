@@ -17,10 +17,7 @@ class Retriever:
     """
 
     def __init__(
-        self,
-        vector_store: VectorStore,
-        default_top_k: int = 5,
-        score_threshold: float = 0.7
+        self, vector_store: VectorStore, default_top_k: int = 5, score_threshold: float = 0.7
     ) -> None:
         """
         Initialise le retriever.
@@ -35,11 +32,7 @@ class Retriever:
         self.default_top_k = default_top_k
         self.score_threshold = score_threshold
 
-    def retrieve(
-        self,
-        query: str,
-        top_k: Optional[int] = None
-    ) -> list[dict]:
+    def retrieve(self, query: str, top_k: Optional[int] = None) -> list[dict]:
         """
         Récupère les documents pertinents.
 
@@ -56,19 +49,13 @@ class Retriever:
         return self.vector_store.search(query, top_k)
 
     def retrieve_with_scores(
-        self,
-        query: str,
-        top_k: Optional[int] = None
+        self, query: str, top_k: Optional[int] = None
     ) -> list[tuple[dict, float]]:
         """Récupère avec les scores de similarité."""
         documents = self.retrieve(query, top_k)
         return [(doc, doc.get("score", 0)) for doc in documents]
 
-    def format_context(
-        self,
-        documents: list[dict],
-        max_tokens: int = 1000
-    ) -> str:
+    def format_context(self, documents: list[dict], max_tokens: int = 1000) -> str:
         """
         Formate les documents pour injection dans le prompt.
 
@@ -117,9 +104,7 @@ class Retriever:
         return "\n".join(context_parts)
 
     def filter_by_threshold(
-        self,
-        results: list[tuple[dict, float]],
-        threshold: Optional[float] = None
+        self, results: list[tuple[dict, float]], threshold: Optional[float] = None
     ) -> list[dict]:
         """
         Filtre les résultats par score minimum.
@@ -141,10 +126,7 @@ class Retriever:
         return [doc for doc, score in results if score <= threshold]
 
     def retrieve_and_format(
-        self,
-        query: str,
-        top_k: Optional[int] = None,
-        max_tokens: int = 1000
+        self, query: str, top_k: Optional[int] = None, max_tokens: int = 1000
     ) -> str:
         """
         Raccourci: retrieve + format en une méthode.
@@ -155,11 +137,7 @@ class Retriever:
         documents = self.retrieve(query, top_k)
         return self.format_context(documents, max_tokens)
 
-    def multi_query_retrieve(
-        self,
-        queries: list[str],
-        top_k_per_query: int = 3
-    ) -> list[dict]:
+    def multi_query_retrieve(self, queries: list[str], top_k_per_query: int = 3) -> list[dict]:
         """
         Recherche avec plusieurs requêtes et fusionne les résultats.
 
@@ -191,18 +169,12 @@ class Retriever:
                         all_results[doc_id] = doc
 
         # Trier par score (croissant = plus similaire d'abord)
-        sorted_results = sorted(
-            all_results.values(),
-            key=lambda x: x.get("score", float("inf"))
-        )
+        sorted_results = sorted(all_results.values(), key=lambda x: x.get("score", float("inf")))
 
         return sorted_results
 
     def retrieve_for_triage(
-        self,
-        symptoms: list[str],
-        vital_signs: dict = None,
-        top_k: int = 5
+        self, symptoms: list[str], vital_signs: dict = None, top_k: int = 5
     ) -> str:
         """
         Méthode spécialisée pour le triage médical.

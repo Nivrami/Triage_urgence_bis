@@ -213,7 +213,7 @@ Ces signes indiquent un danger immédiat pour :
    - ❌ + TA basse, pouls rapide
    - → Hémorragie interne, péritonite
 
-4. **Contexte** 
+4. **Contexte**
    - ❌ Grossesse + douleur abdominale intense
    - ❌ Traumatisme abdominal
    - ❌ Début brutal + syncope

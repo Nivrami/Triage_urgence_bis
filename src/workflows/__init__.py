@@ -1,4 +1,3 @@
 from .simulation_workflow import SimulationWorkflow
 
-__all__ = [
-    "SimulationWorkflow"]
+__all__ = ["SimulationWorkflow"]

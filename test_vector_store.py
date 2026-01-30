@@ -10,7 +10,7 @@ import shutil
 # Fix encoding for Windows console
 if sys.platform == "win32":
     os.system("chcp 65001 >nul")
-    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Ajouter le répertoire racine au path
 ROOT_DIR = Path(__file__).resolve().parent
@@ -19,12 +19,13 @@ sys.path.append(str(ROOT_DIR))
 from src.rag.embeddings import EmbeddingProvider
 from src.rag.vector_store import VectorStore
 
+
 def test_vector_store():
     """Test complet du VectorStore."""
 
-    print("="*60)
+    print("=" * 60)
     print("TEST DU VECTORSTORE")
-    print("="*60)
+    print("=" * 60)
 
     # Chemin de test temporaire
     test_db_path = ROOT_DIR / "data" / "test_chroma_db"
@@ -47,7 +48,7 @@ def test_vector_store():
         vector_store = VectorStore(
             persist_path=str(test_db_path),
             embedding_provider=embedder,
-            collection_name="test_medical"
+            collection_name="test_medical",
         )
         print(f"✅ VectorStore créé dans {test_db_path}")
     except Exception as e:
@@ -70,24 +71,32 @@ def test_vector_store():
         medical_docs = [
             {
                 "text": "Douleur thoracique avec irradiation nécessite une classification ROUGE et une prise en charge immédiate.",
-                "metadata": {"source": "protocole_CIMU.pdf", "page": 5, "category": "urgence_vitale"}
+                "metadata": {
+                    "source": "protocole_CIMU.pdf",
+                    "page": 5,
+                    "category": "urgence_vitale",
+                },
             },
             {
                 "text": "Fièvre supérieure à 39°C chez un enfant de moins de 3 mois constitue une urgence pédiatrique.",
-                "metadata": {"source": "protocole_CIMU.pdf", "page": 12, "category": "pediatrie"}
+                "metadata": {"source": "protocole_CIMU.pdf", "page": 12, "category": "pediatrie"},
             },
             {
                 "text": "Constantes vitales normales adulte: FC 60-100 bpm, FR 12-20, SpO2 > 95%, TA systolique 100-140 mmHg.",
-                "metadata": {"source": "constantes.pdf", "page": 1, "category": "reference"}
+                "metadata": {"source": "constantes.pdf", "page": 1, "category": "reference"},
             },
             {
                 "text": "Traumatisme crânien avec perte de connaissance requiert un examen neurologique et un scanner cérébral.",
-                "metadata": {"source": "protocole_CIMU.pdf", "page": 18, "category": "traumatologie"}
+                "metadata": {
+                    "source": "protocole_CIMU.pdf",
+                    "page": 18,
+                    "category": "traumatologie",
+                },
             },
             {
                 "text": "Douleur abdominale aiguë avec défense nécessite une consultation chirurgicale urgente.",
-                "metadata": {"source": "protocole_CIMU.pdf", "page": 25, "category": "chirurgie"}
-            }
+                "metadata": {"source": "protocole_CIMU.pdf", "page": 25, "category": "chirurgie"},
+            },
         ]
 
         vector_store.add_documents(medical_docs)
@@ -110,7 +119,7 @@ def test_vector_store():
         "patient avec douleur dans la poitrine",
         "enfant qui a de la fièvre",
         "valeurs normales du rythme cardiaque",
-        "choc à la tête"
+        "choc à la tête",
     ]
 
     for query in test_queries:
@@ -129,9 +138,7 @@ def test_vector_store():
     print("\n[Test 7] Recherche avec filtre (catégorie='urgence_vitale')...")
     try:
         results = vector_store.search(
-            "patient urgent",
-            top_k=5,
-            filter_metadata={"category": "urgence_vitale"}
+            "patient urgent", top_k=5, filter_metadata={"category": "urgence_vitale"}
         )
         print(f"✅ {len(results)} résultats trouvés avec filtre")
         for doc in results:
@@ -144,7 +151,7 @@ def test_vector_store():
     try:
         simple_texts = [
             "L'IOA doit poser des questions précises sur les symptômes.",
-            "La classification par couleur facilite la priorisation des patients."
+            "La classification par couleur facilite la priorisation des patients.",
         ]
         vector_store.add_texts(simple_texts)
         stats = vector_store.get_collection_stats()
@@ -159,16 +166,16 @@ def test_vector_store():
         vector_store2 = VectorStore(
             persist_path=str(test_db_path),
             embedding_provider=embedder,
-            collection_name="test_medical"
+            collection_name="test_medical",
         )
         stats2 = vector_store2.get_collection_stats()
         print(f"✅ Données persistées! {stats2['count']} documents récupérés")
     except Exception as e:
         print(f"❌ Erreur: {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTS TERMINÉS!")
-    print("="*60)
+    print("=" * 60)
 
     # Nettoyage
     print("\n[Nettoyage] Suppression de la base de test...")
@@ -178,6 +185,7 @@ def test_vector_store():
             print("✅ Base de test supprimée")
     except Exception as e:
         print(f"⚠️ Impossible de supprimer: {e}")
+
 
 if __name__ == "__main__":
     test_vector_store()

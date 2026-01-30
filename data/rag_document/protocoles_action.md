@@ -85,7 +85,7 @@
   - Risque d'inhalation
   - Complique anesthésie éventuelle
 
-- ❌ **Donner de médicaments** 
+- ❌ **Donner de médicaments**
   - Sauf si prescrit et habituel
   - Ex: Pas d'aspirine sans avis médical
 

@@ -100,7 +100,7 @@ class TriageChatbotAPI:
                     print(f"RAG Error: {e}")
                     rag_context = ""
 
-            # Prompts intelligents (pas robotiques)
+            # Prompts système
             prompts = {
                 "symptoms": """Tu es un assistant médical empathique. Le patient a déjà donné son identité.
 Demande maintenant son symptôme principal de manière naturelle et rassurante.
@@ -144,7 +144,7 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
             # Contexte des données déjà collectées
             context = self._build_context()
 
-            # Appel API avec Mistral Small (optimisé coût/latence)
+            # Appel API Mistral
             start = time.time()
             resp = self.client.chat.complete(
                 model="mistral-small-latest",
