@@ -9,7 +9,7 @@ from pathlib import Path
 # Fix encoding for Windows console
 if sys.platform == "win32":
     os.system("chcp 65001 >nul")
-    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Ajouter le répertoire racine au path
 ROOT_DIR = Path(__file__).resolve().parent
@@ -17,12 +17,13 @@ sys.path.append(str(ROOT_DIR))
 
 from src.rag.embeddings import EmbeddingProvider
 
+
 def test_embedding_provider():
     """Test complet de l'EmbeddingProvider."""
 
-    print("="*60)
+    print("=" * 60)
     print("TEST DE L'EMBEDDINGPROVIDER")
-    print("="*60)
+    print("=" * 60)
 
     # Test 1: Initialisation
     print("\n[Test 1] Initialisation du modèle...")
@@ -67,12 +68,7 @@ def test_embedding_provider():
     # Test 5: Embedding batch
     print("\n[Test 5] Embedding de plusieurs textes (batch)...")
     try:
-        texts = [
-            "douleur thoracique",
-            "fièvre élevée",
-            "migraine sévère",
-            "fracture du poignet"
-        ]
+        texts = ["douleur thoracique", "fièvre élevée", "migraine sévère", "fracture du poignet"]
         vectors = embedder.embed_batch(texts)
         print(f"✅ Nombre de textes: {len(texts)}")
         print(f"   - Nombre de vecteurs générés: {len(vectors)}")
@@ -94,7 +90,7 @@ def test_embedding_provider():
             "Le patient présente une tachycardie",
             "Suspicion d'infarctus du myocarde",
             "Constantes vitales stables",
-            "Douleur abdominale aiguë"
+            "Douleur abdominale aiguë",
         ]
         vectors = embedder.embed_batch(medical_texts)
         print(f"✅ {len(vectors)} vecteurs médicaux générés")
@@ -102,9 +98,10 @@ def test_embedding_provider():
     except Exception as e:
         print(f"❌ Erreur: {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTS TERMINÉS!")
-    print("="*60)
+    print("=" * 60)
+
 
 if __name__ == "__main__":
     test_embedding_provider()

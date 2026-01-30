@@ -1,4 +1,3 @@
-
 from .base_agent import BaseAgent
 from .patient_generator import PatientGenerator
 from .patient_simulator import PatientSimulator
@@ -11,4 +10,3 @@ __all__ = [
     "PatientSimulator",
     "NurseAgent",
 ]
-

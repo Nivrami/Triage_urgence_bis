@@ -16,11 +16,7 @@ class DocumentLoader:
     - HuggingFace datasets
     """
 
-    def __init__(
-        self,
-        chunk_size: int = 500,
-        chunk_overlap: int = 50
-    ) -> None:
+    def __init__(self, chunk_size: int = 500, chunk_overlap: int = 50) -> None:
         """
         Initialise le loader.
 
@@ -77,15 +73,17 @@ class DocumentLoader:
             text = self.preprocess_text(text)
 
             if text.strip():  # Ignorer les pages vides
-                documents.append({
-                    "text": text,
-                    "metadata": {
-                        "source": str(file_path),
-                        "page": page_num,
-                        "total_pages": len(doc),
-                        "type": "pdf"
+                documents.append(
+                    {
+                        "text": text,
+                        "metadata": {
+                            "source": str(file_path),
+                            "page": page_num,
+                            "total_pages": len(doc),
+                            "type": "pdf",
+                        },
                     }
-                })
+                )
 
         doc.close()
         return documents
@@ -95,13 +93,7 @@ class DocumentLoader:
         text = file_path.read_text(encoding="utf-8")
         text = self.preprocess_text(text)
 
-        return [{
-            "text": text,
-            "metadata": {
-                "source": str(file_path),
-                "type": "txt"
-            }
-        }]
+        return [{"text": text, "metadata": {"source": str(file_path), "type": "txt"}}]
 
     def _load_json(self, file_path: Path) -> list[dict]:
         """Charge un fichier JSON."""
@@ -116,34 +108,36 @@ class DocumentLoader:
         if isinstance(data, list):
             for i, item in enumerate(data):
                 if isinstance(item, dict) and "text" in item:
-                    documents.append({
-                        "text": self.preprocess_text(item["text"]),
-                        "metadata": {
-                            "source": str(file_path),
-                            "index": i,
-                            "type": "json",
-                            **item.get("metadata", {})
+                    documents.append(
+                        {
+                            "text": self.preprocess_text(item["text"]),
+                            "metadata": {
+                                "source": str(file_path),
+                                "index": i,
+                                "type": "json",
+                                **item.get("metadata", {}),
+                            },
                         }
-                    })
+                    )
                 elif isinstance(item, str):
-                    documents.append({
-                        "text": self.preprocess_text(item),
-                        "metadata": {
-                            "source": str(file_path),
-                            "index": i,
-                            "type": "json"
+                    documents.append(
+                        {
+                            "text": self.preprocess_text(item),
+                            "metadata": {"source": str(file_path), "index": i, "type": "json"},
                         }
-                    })
+                    )
         # Si c'est un objet unique
         elif isinstance(data, dict) and "text" in data:
-            documents.append({
-                "text": self.preprocess_text(data["text"]),
-                "metadata": {
-                    "source": str(file_path),
-                    "type": "json",
-                    **data.get("metadata", {})
+            documents.append(
+                {
+                    "text": self.preprocess_text(data["text"]),
+                    "metadata": {
+                        "source": str(file_path),
+                        "type": "json",
+                        **data.get("metadata", {}),
+                    },
                 }
-            })
+            )
 
         return documents
 
@@ -162,15 +156,17 @@ class DocumentLoader:
                 else:
                     text = " ".join(str(v) for v in row.values())
 
-                documents.append({
-                    "text": self.preprocess_text(text),
-                    "metadata": {
-                        "source": str(file_path),
-                        "row": i,
-                        "type": "csv",
-                        **{k: v for k, v in row.items() if k != "text"}
+                documents.append(
+                    {
+                        "text": self.preprocess_text(text),
+                        "metadata": {
+                            "source": str(file_path),
+                            "row": i,
+                            "type": "csv",
+                            **{k: v for k, v in row.items() if k != "text"},
+                        },
                     }
-                })
+                )
 
         return documents
 
@@ -217,10 +213,7 @@ class DocumentLoader:
 
         # Si le texte est plus petit que chunk_size, pas besoin de découper
         if len(text) <= self.chunk_size:
-            return [{
-                "text": text,
-                "metadata": {**metadata, "chunk_index": 0, "is_chunked": False}
-            }]
+            return [{"text": text, "metadata": {**metadata, "chunk_index": 0, "is_chunked": False}}]
 
         chunks = []
         start = 0
@@ -237,7 +230,7 @@ class DocumentLoader:
                     text.rfind(". ", start, end),
                     text.rfind("\n", start, end),
                     text.rfind("? ", start, end),
-                    text.rfind("! ", start, end)
+                    text.rfind("! ", start, end),
                 )
 
                 # Si on trouve une coupure naturelle, l'utiliser
@@ -248,16 +241,18 @@ class DocumentLoader:
             chunk_text = text[start:end].strip()
 
             if chunk_text:  # Ignorer les chunks vides
-                chunks.append({
-                    "text": chunk_text,
-                    "metadata": {
-                        **metadata,
-                        "chunk_index": chunk_index,
-                        "start_char": start,
-                        "end_char": end,
-                        "is_chunked": True
+                chunks.append(
+                    {
+                        "text": chunk_text,
+                        "metadata": {
+                            **metadata,
+                            "chunk_index": chunk_index,
+                            "start_char": start,
+                            "end_char": end,
+                            "is_chunked": True,
+                        },
                     }
-                })
+                )
                 chunk_index += 1
 
             # Avancer avec overlap
@@ -291,24 +286,21 @@ class DocumentLoader:
             return ""
 
         # Remplacer les retours à la ligne multiples par un seul
-        text = re.sub(r'\n\s*\n', '\n\n', text)
+        text = re.sub(r"\n\s*\n", "\n\n", text)
 
         # Remplacer les espaces multiples par un seul
-        text = re.sub(r'[ \t]+', ' ', text)
+        text = re.sub(r"[ \t]+", " ", text)
 
         # Supprimer les espaces en début/fin de ligne
-        text = '\n'.join(line.strip() for line in text.split('\n'))
+        text = "\n".join(line.strip() for line in text.split("\n"))
 
         # Supprimer les caractères de contrôle
-        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
+        text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
 
         return text.strip()
 
     def load_from_huggingface(
-        self,
-        dataset_name: str,
-        split: str = "train",
-        text_column: str = "text"
+        self, dataset_name: str, split: str = "train", text_column: str = "text"
     ) -> list[dict]:
         """
         Charge depuis HuggingFace.
@@ -329,15 +321,17 @@ class DocumentLoader:
         for i, item in enumerate(dataset):
             text = item.get(text_column, "")
             if text:
-                documents.append({
-                    "text": self.preprocess_text(text),
-                    "metadata": {
-                        "source": dataset_name,
-                        "index": i,
-                        "type": "huggingface",
-                        **{k: v for k, v in item.items() if k != text_column}
+                documents.append(
+                    {
+                        "text": self.preprocess_text(text),
+                        "metadata": {
+                            "source": dataset_name,
+                            "index": i,
+                            "type": "huggingface",
+                            **{k: v for k, v in item.items() if k != text_column},
+                        },
                     }
-                })
+                )
 
         return documents
 
@@ -349,24 +343,24 @@ class DocumentLoader:
         gravity_categories = [
             {
                 "text": "ROUGE (Niveau 1): Urgence vitale immédiate. Patient en détresse vitale nécessitant une prise en charge immédiate. Exemples: arrêt cardiaque, détresse respiratoire sévère, polytraumatisme grave, AVC en phase aiguë.",
-                "metadata": {"category": "gravite", "level": "ROUGE", "priority": 1}
+                "metadata": {"category": "gravite", "level": "ROUGE", "priority": 1},
             },
             {
                 "text": "ORANGE (Niveau 2): Urgence vraie. État clinique instable ou potentiellement grave. Exemples: douleur thoracique, dyspnée modérée, traumatisme crânien avec perte de connaissance brève.",
-                "metadata": {"category": "gravite", "level": "ORANGE", "priority": 2}
+                "metadata": {"category": "gravite", "level": "ORANGE", "priority": 2},
             },
             {
                 "text": "JAUNE (Niveau 3): Urgence relative. État stable mais nécessitant une évaluation rapide. Exemples: fièvre élevée, douleur abdominale, fracture simple.",
-                "metadata": {"category": "gravite", "level": "JAUNE", "priority": 3}
+                "metadata": {"category": "gravite", "level": "JAUNE", "priority": 3},
             },
             {
                 "text": "VERT (Niveau 4): Consultation non urgente. État stable sans critère de gravité. Exemples: plaie superficielle, entorse légère, symptômes mineurs.",
-                "metadata": {"category": "gravite", "level": "VERT", "priority": 4}
+                "metadata": {"category": "gravite", "level": "VERT", "priority": 4},
             },
             {
                 "text": "BLEU (Niveau 5): Consultation différable. Problème chronique ou mineur ne relevant pas des urgences. Orientation vers médecine de ville recommandée.",
-                "metadata": {"category": "gravite", "level": "BLEU", "priority": 5}
-            }
+                "metadata": {"category": "gravite", "level": "BLEU", "priority": 5},
+            },
         ]
 
         return gravity_categories
@@ -376,6 +370,5 @@ class DocumentLoader:
         Charge le dataset medical-cases-fr de HuggingFace.
         """
         return self.load_from_huggingface(
-            dataset_name="mlabonne/medical-cases-fr",
-            text_column="text"
+            dataset_name="mlabonne/medical-cases-fr", text_column="text"
         )

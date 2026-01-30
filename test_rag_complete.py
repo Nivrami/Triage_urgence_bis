@@ -10,7 +10,7 @@ import shutil
 # Fix encoding for Windows console
 if sys.platform == "win32":
     os.system("chcp 65001 >nul")
-    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Ajouter le répertoire racine au path
 ROOT_DIR = Path(__file__).resolve().parent
@@ -25,9 +25,9 @@ from src.rag.retriever import Retriever
 def test_rag_complete():
     """Test complet du pipeline RAG."""
 
-    print("="*60)
+    print("=" * 60)
     print("TEST COMPLET DU PIPELINE RAG")
-    print("="*60)
+    print("=" * 60)
 
     # Chemin de test temporaire
     test_db_path = ROOT_DIR / "data" / "test_rag_db"
@@ -48,9 +48,7 @@ def test_rag_complete():
 
         # VectorStore
         vector_store = VectorStore(
-            persist_path=str(test_db_path),
-            embedding_provider=embedder,
-            collection_name="test_rag"
+            persist_path=str(test_db_path), embedding_provider=embedder, collection_name="test_rag"
         )
         print("   ✅ VectorStore créé")
 
@@ -114,20 +112,20 @@ def test_rag_complete():
         test_docs = [
             {
                 "text": "La douleur thoracique avec irradiation dans le bras gauche et des sueurs nécessite une prise en charge immédiate. Classification ROUGE.",
-                "metadata": {"source": "test", "category": "cardiologie"}
+                "metadata": {"source": "test", "category": "cardiologie"},
             },
             {
                 "text": "Fièvre supérieure à 39°C chez un enfant de moins de 3 mois: urgence pédiatrique, classification ORANGE minimum.",
-                "metadata": {"source": "test", "category": "pediatrie"}
+                "metadata": {"source": "test", "category": "pediatrie"},
             },
             {
                 "text": "Constantes vitales normales chez l'adulte: fréquence cardiaque 60-100 bpm, fréquence respiratoire 12-20/min, SpO2 > 95%, tension artérielle systolique 100-140 mmHg.",
-                "metadata": {"source": "test", "category": "constantes"}
+                "metadata": {"source": "test", "category": "constantes"},
             },
             {
                 "text": "L'entorse de cheville sans fracture associée, patient stable, peut être classée VERT avec orientation vers médecine de ville.",
-                "metadata": {"source": "test", "category": "traumatologie"}
-            }
+                "metadata": {"source": "test", "category": "traumatologie"},
+            },
         ]
         vector_store.add_documents(test_docs)
         print("   ✅ Documents de test ajoutés")
@@ -152,7 +150,7 @@ def test_rag_complete():
         "patient avec douleur dans la poitrine",
         "enfant qui a de la fièvre",
         "classification urgence vitale",
-        "entorse cheville"
+        "entorse cheville",
     ]
 
     for query in test_queries:
@@ -163,8 +161,8 @@ def test_rag_complete():
             print(f"      {len(results)} résultats trouvés")
 
             for i, doc in enumerate(results, 1):
-                score = doc.get('score', 0)
-                text = doc.get('text', '')[:80]
+                score = doc.get("score", 0)
+                text = doc.get("text", "")[:80]
                 print(f"      [{i}] Score: {score:.4f} | {text}...")
 
         except Exception as e:
@@ -177,9 +175,7 @@ def test_rag_complete():
 
     try:
         context = retriever.retrieve_and_format(
-            "patient avec douleur thoracique et essoufflement",
-            top_k=3,
-            max_tokens=500
+            "patient avec douleur thoracique et essoufflement", top_k=3, max_tokens=500
         )
         print("   ✅ Contexte formaté:")
         print("-" * 50)
@@ -202,9 +198,9 @@ def test_rag_complete():
     except Exception as e:
         print(f"   ❌ Erreur: {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TESTS RAG TERMINÉS!")
-    print("="*60)
+    print("=" * 60)
 
     # Note: On ne nettoie pas la base pour que l'utilisateur puisse l'inspecter
     print(f"\n💡 Base de test conservée dans: {test_db_path}")

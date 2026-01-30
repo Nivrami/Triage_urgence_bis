@@ -18,16 +18,16 @@ from ..models.patient import Patient, Constantes
 class ConversationAnalyzer:
     """
     Analyse une conversation et extrait les données patient.
-    
+
     Usage:
         analyzer = ConversationAnalyzer(llm)
         patient = analyzer.extract_patient_info(conversation)
     """
-    
+
     def __init__(self, llm_provider: BaseLLMProvider):
         """
         Initialise l'analyseur.
-        
+
         Args:
             llm_provider: Provider LLM
         """
@@ -67,21 +67,20 @@ class ConversationAnalyzer:
             missing.append("temperature")
 
         return missing
-        
-    
+
     def extract_patient_info(self, conversation: ConversationHistory) -> Patient:
         """
         Extrait les informations patient de la conversation.
-        
+
         Args:
             conversation: Historique de conversation
-            
+
         Returns:
             Patient: Objet Patient rempli avec les infos extraites
         """
         # Construire le prompt d'extraction
         conversation_text = conversation.get_full_text()
-        
+
         prompt = f"""Analyse cette conversation médicale entre un infirmier et un patient aux urgences.
 
 CONVERSATION :
@@ -137,18 +136,16 @@ IMPORTANT :
 - Pour les symptômes, utilise le langage du patient
 - Mets null pour ce qui n'est PAS dans la conversation
 """
-        
+
         # Appeler le LLM
         response = self.llm.generate(
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,  
-            max_tokens=800
+            messages=[{"role": "user", "content": prompt}], temperature=0.3, max_tokens=800
         )
-        
+
         # Parser le JSON
         try:
             data = self._extract_json_from_response(response)
-            
+
             # Créer les constantes
             const_data = data.get("constantes", {})
             constantes = None
@@ -159,9 +156,9 @@ IMPORTANT :
                     spo2=const_data.get("spo2"),
                     ta_systolique=const_data.get("ta_systolique"),
                     ta_diastolique=const_data.get("ta_diastolique"),
-                    temperature=const_data.get("temperature")
+                    temperature=const_data.get("temperature"),
                 )
-            
+
             # Créer le patient
             patient = Patient(
                 age=data.get("age"),
@@ -171,40 +168,40 @@ IMPORTANT :
                 antecedents=data.get("antecedents", []),
                 allergies=data.get("allergies", []),
                 traitements_en_cours=data.get("traitements_en_cours", []),
-                constantes=constantes
+                constantes=constantes,
             )
-            
+
             return patient
-            
+
         except (json.JSONDecodeError, KeyError) as e:
             print(f"❌ Erreur extraction : {e}")
             print(f"Réponse LLM : {response[:200]}...")
             # Retourner patient vide plutôt que crash
             return Patient()
-    
+
     def _extract_json_from_response(self, response: str) -> dict:
         """Extrait JSON de la réponse."""
         # Nettoyer markdown
         response_clean = response.strip()
-        
+
         if response_clean.startswith("```json"):
             response_clean = response_clean[7:]
         elif response_clean.startswith("```"):
             response_clean = response_clean[3:]
-        
+
         if response_clean.endswith("```"):
             response_clean = response_clean[:-3]
-        
+
         # Parser
         return json.loads(response_clean.strip())
-    
+
     def get_completeness_score(self, patient: Patient) -> dict:
         """
         Calcule le score de complétude du patient.
-        
+
         Args:
             patient: Objet Patient
-            
+
         Returns:
             {
                 "score": float (0-1),
@@ -215,21 +212,21 @@ IMPORTANT :
         total_fields = 0
         filled_fields = 0
         missing = []
-        
+
         # Champs critiques
         critical_fields = {
             "symptomes_exprimes": "Symptômes",
             "age": "Âge",
-            "duree_symptomes": "Durée des symptômes"
+            "duree_symptomes": "Durée des symptômes",
         }
-        
+
         # Champs importants
         important_fields = {
             "sexe": "Sexe",
             "antecedents": "Antécédents",
-            "constantes": "Constantes vitales"
+            "constantes": "Constantes vitales",
         }
-        
+
         # Vérifier champs critiques
         for field, label in critical_fields.items():
             total_fields += 1
@@ -238,22 +235,18 @@ IMPORTANT :
                 filled_fields += 1
             else:
                 missing.append(label)
-        
+
         # Vérifier champs importants
         for field, label in important_fields.items():
             total_fields += 1
             value = getattr(patient, field)
             if value and (not isinstance(value, list) or len(value) > 0):
                 filled_fields += 1
-        
+
         # Score
         score = filled_fields / total_fields if total_fields > 0 else 0
-        
+
         # Au moins les infos critiques ?
         has_critical = len(missing) == 0
-        
-        return {
-            "score": round(score, 2),
-            "missing": missing,
-            "has_critical_info": has_critical
-        }
+
+        return {"score": round(score, 2), "missing": missing, "has_critical_info": has_critical}

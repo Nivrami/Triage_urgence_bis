@@ -13,7 +13,7 @@ from typing import Optional
 
 class EmbeddingProvider:
     """Gestion des embeddings textuels."""
-    
+
     # Modèles supportés avec leurs dimensions
     SUPPORTED_MODELS = {
         "all-MiniLM-L6-v2": {"dim": 384, "type": "sentence-transformers"},
@@ -21,12 +21,9 @@ class EmbeddingProvider:
         "text-embedding-3-small": {"dim": 1536, "type": "openai"},
         "text-embedding-3-large": {"dim": 3072, "type": "openai"},
     }
-    
+
     def __init__(
-        self,
-        model_name: str = "all-MiniLM-L6-v2",
-        api_key: Optional[str] = None,
-        **kwargs
+        self, model_name: str = "all-MiniLM-L6-v2", api_key: Optional[str] = None, **kwargs
     ) -> None:
         """
         Initialise le provider d'embeddings.
@@ -55,6 +52,7 @@ class EmbeddingProvider:
         if self.model_info["type"] == "sentence-transformers":
             # Modèle local gratuit
             from sentence_transformers import SentenceTransformer
+
             self.model = SentenceTransformer(model_name)
             self.model_type = "sentence-transformers"
 
@@ -63,9 +61,9 @@ class EmbeddingProvider:
             if not api_key:
                 raise ValueError("Une clé API OpenAI est requise pour ce modèle")
             import openai
+
             self.client = openai.OpenAI(api_key=api_key)
             self.model_type = "openai"
-
 
     def embed_text(self, text: str) -> list[float]:
         """
@@ -80,20 +78,17 @@ class EmbeddingProvider:
         if self.model_type == "sentence-transformers":
             # Utiliser le modèle local
             import numpy as np
+
             embedding = self.model.encode(text, convert_to_numpy=True)
             return embedding.tolist()
-        
+
         elif self.model_type == "openai":
             # Appel API OpenAI
-            response = self.client.embeddings.create(
-                model=self.model_name,
-                input=text
-            )
+            response = self.client.embeddings.create(model=self.model_name, input=text)
             return response.data[0].embedding
-        
+
         else:
             raise ValueError(f"Type de modèle non supporté: {self.model_type}")
-
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """
@@ -110,17 +105,15 @@ class EmbeddingProvider:
         if self.model_type == "sentence-transformers":
             # Encoder tous les textes en une seule fois
             import numpy as np
+
             embeddings = self.model.encode(texts, convert_to_numpy=True)
             return [emb.tolist() for emb in embeddings]
-        
+
         elif self.model_type == "openai":
             # OpenAI peut traiter plusieurs textes en un seul appel
-            response = self.client.embeddings.create(
-                model=self.model_name,
-                input=texts
-            )
+            response = self.client.embeddings.create(model=self.model_name, input=texts)
             return [item.embedding for item in response.data]
-        
+
         else:
             raise ValueError(f"Type de modèle non supporté: {self.model_type}")
 
@@ -128,15 +121,13 @@ class EmbeddingProvider:
         """Retourne la dimension des vecteurs."""
         return self.model_info["dim"]
 
-
     def get_model_info(self) -> dict:
         """Informations sur le modèle."""
         return {
             "model_name": self.model_name,
             "dimension": self.model_info["dim"],
-            "type": self.model_type
+            "type": self.model_type,
         }
-
 
     def _load_sentence_transformer(self, model_name: str) -> None:
         """Charge un modèle sentence-transformers."""

@@ -10,10 +10,10 @@ JUSTIFIER: Pourquoi centraliser les prompts?
 
 class PromptTemplates:
     """Tous les prompts du système."""
-    
+
     # === AGENT TRIAGE ===
     SYSTEM_TRIAGE_AGENT: str = """
-Tu es un infirmier d'accueil aux urgences (IAO). Ton rôle est de mener un entretien 
+Tu es un infirmier d'accueil aux urgences (IAO). Ton rôle est de mener un entretien
 de triage avec le patient pour évaluer la gravité de son état.
 
 Tu dois poser des questions pour recueillir:
@@ -95,7 +95,7 @@ Analyse et justifie ton évaluation en français.
 """
     # === RAG QUERY ===
     RAG_QUERY_REWRITE: str = """
-Reformule la requête suivante pour optimiser la recherche dans une base 
+Reformule la requête suivante pour optimiser la recherche dans une base
 de connaissances médicales:
 
 Requête: {query}
@@ -107,17 +107,17 @@ Retourne uniquement la requête reformulée en français, sans explication.
     def get_triage_prompt(cls, rag_context: str = "") -> str:
         """Retourne le prompt triage avec contexte RAG optionnel."""
         pass
-    
+
     @classmethod
     def get_patient_simulator_prompt(cls, patient_profile: dict) -> str:
         """Retourne le prompt patient avec le profil injecté."""
         pass
-    
+
     @classmethod
     def get_extraction_prompt(cls, conversation: str) -> str:
         """Retourne le prompt d'extraction avec la conversation."""
         pass
-    
+
     @classmethod
     def get_classification_prompt(cls, patient_info: dict, rag_context: str) -> str:
         """Retourne le prompt de classification."""
