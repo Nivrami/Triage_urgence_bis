@@ -9,7 +9,7 @@ Analyse une conversation et extrait :
 """
 
 import json
-from typing import Optional
+
 from ..llm.base_llm import BaseLLMProvider
 from ..models.conversation import ConversationHistory
 from ..models.patient import Patient, Constantes
@@ -81,7 +81,8 @@ class ConversationAnalyzer:
         # Construire le prompt d'extraction
         conversation_text = conversation.get_full_text()
 
-        prompt = f"""Analyse cette conversation médicale entre un infirmier et un patient aux urgences.
+        prompt = f"""Analyse cette conversation médicale entre un infirmier et un patient.
+Contexte: urgences hospitalières.
 
 CONVERSATION :
 {conversation_text}

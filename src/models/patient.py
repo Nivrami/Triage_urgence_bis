@@ -8,10 +8,11 @@ JUSTIFIER: Pourquoi Pydantic?
 - Immutabilité optionnelle
 """
 
-from enum import Enum
-from pydantic import BaseModel, Field
-from typing import Optional
 import uuid
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class GravityLevel(Enum):
@@ -213,7 +214,9 @@ class Patient(BaseModel):
                 self.constantes.ta_systolique is not None
                 and self.constantes.ta_diastolique is not None
             ):
-                summary += f"  - TA: {self.constantes.ta_systolique}/{self.constantes.ta_diastolique} mmHg\n"
+                ta_sys = self.constantes.ta_systolique
+                ta_dia = self.constantes.ta_diastolique
+                summary += f"  - TA: {ta_sys}/{ta_dia} mmHg\n"
             if self.constantes.temperature is not None:
                 summary += f"  - Température: {self.constantes.temperature} °C\n"
         return summary

@@ -4,7 +4,6 @@ Chargement et prétraitement des documents médicaux.
 
 import re
 from pathlib import Path
-from typing import Optional
 
 
 class DocumentLoader:

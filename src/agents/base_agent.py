@@ -4,9 +4,9 @@ Classe abstraite pour tous les agents.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Any
 import json
-import re
+from typing import Any, Optional
+
 from ..llm.base_llm import BaseLLMProvider
 from ..models.conversation import ConversationHistory
 

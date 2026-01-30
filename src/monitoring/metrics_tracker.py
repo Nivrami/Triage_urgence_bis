@@ -3,7 +3,6 @@ Metrics Tracker - Suivi des métriques du système
 """
 
 import json
-import time
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional

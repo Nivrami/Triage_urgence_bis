@@ -2,11 +2,12 @@
 Modèles pour la gestion des conversations.
 """
 
-from enum import Enum
-from pydantic import BaseModel, Field
-from datetime import datetime
-from typing import Optional
 import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class MessageRole(Enum):
