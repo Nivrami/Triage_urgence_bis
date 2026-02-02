@@ -73,9 +73,7 @@ class MLTriagePredictor:
        
         #  VÉRIFICATION RÈGLES D'URGENCE VITALE
        
-        is_vital_emergency, red_flags = self._check_vital_emergency_rules(
-            patient_info, vitals, symptoms, medical_history, duration
-        )
+        is_vital_emergency, red_flags = self._check_vital_emergency_rules(patient_info, vitals)
 
         if is_vital_emergency:
             # Urgence vitale détectée → ROUGE immédiat
@@ -90,7 +88,7 @@ class MLTriagePredictor:
                 "confidence": 1.0,
                 "features_used": self._build_features_dict(patient_info, vitals),
                 "rag_sources": [],
-                "method": "Règles d'urgence vitale",
+                "method": "Règles d'urgence",
             }
             
             self._track(result, patient_info, time.time() - start)
@@ -116,10 +114,6 @@ class MLTriagePredictor:
             print(f"[ERREUR] Prédiction ML: {e}")
             return self._fallback(symptoms, vitals, medical_history)
 
-        # AJUSTEMENT DU CONTEXTE MEDICAL
-        severity, adjusted_flags = self._adjust_severity_with_context(
-            severity, red_flags, medical_history, medications, duration, proba_dict
-        )
 
         # RAG ENRICHMENT
         rag_data = self._rag_enrich(severity, symptoms, adjusted_flags, medical_history)
@@ -130,8 +124,8 @@ class MLTriagePredictor:
             "label": self.severity_levels[severity]["label"],
             "action": self.severity_levels[severity]["action"],
             "color": self.severity_levels[severity]["color"],
-            "red_flags": ajusted_flags,
-            "justification": self._justify(severity, ajusted_flags, features, symptoms, rag_data, medical_history, medications, allergies, duration),
+            "red_flags": red_flags,
+            "justification": self._justify(severity, red_flags, features, symptoms, rag_data, medical_history, medications, allergies, duration),
             "probabilities": proba_dict,
             "confidence": confidence,
             "features_used": self._build_features_dict(patient_info, vitals),
@@ -229,8 +223,14 @@ class MLTriagePredictor:
 
         return result
 
-    def _prep_features(self, patient: Dict, vitals: Dict) -> List[float]:
-        """[FC, FR, SpO2, TA_sys, TA_dia, Temp, Age, Sex]."""
+    def _prep_features(self, patient_info: Dict, vitals: Dict) -> Optional[List[float]]:
+        """
+        Prépare features ML: [FC, FR, SpO2, TA_sys, TA_dia, Temp, Age, Sex].
+        
+        Args:
+            patient_info: {'patient_id': str, 'age': int, 'sex': 'H'/'F'}
+            vitals: {'Temperature': float, 'FC': int, ...}
+        """
         try:
             return [
                 vitals.get("FC", 75),
@@ -239,15 +239,28 @@ class MLTriagePredictor:
                 vitals.get("TA_systolique", 120),
                 vitals.get("TA_diastolique", 80),
                 vitals.get("Temperature", 37.0),
-                patient.get("age", 40),
-                1 if patient.get("genre") in ["Homme", "H"] else 0,
+                patient_info.get("age", 40),
+                1 if patient_info.get("sex") == "H" else 0,
             ]
-        except:
+        except Exception as e:
+            print(f"[ERREUR] Préparation features: {e}")
             return None
 
+    def _build_features_dict(self, patient_info: Dict, vitals: Dict) -> Dict:
+        """Construit dictionnaire features pour affichage."""
+        return {
+            "FC": vitals.get("FC", "?"),
+            "FR": vitals.get("FR", "?"),
+            "SpO2": vitals.get("SpO2", "?"),
+            "TA_sys": vitals.get("TA_systolique", "?"),
+            "TA_dia": vitals.get("TA_diastolique", "?"),
+            "Temp": vitals.get("Temperature", "?"),
+            "Age": patient_info.get("age", "?"),
+            "Sex": patient_info.get("sex", "?"),
+        }
     
     def _justify(
-        self, severity: str, flags: List[str], features: List[float], symptoms: List[str], rag: Dict
+        self, severity: str, red_flags: List[str], features: List[float], symptoms: List[str], rag: Dict
     ) -> str:
         """Justification."""
         j = f"**{self.severity_levels[severity]['label']}**\n\n"
@@ -276,10 +289,21 @@ class MLTriagePredictor:
 
         return j
 
-    def _fallback(self, symptoms: List[str], vitals: Dict) -> Dict:
-        """Fallback."""
-        flags = self._red_flags(vitals, symptoms)
+   def _fallback(
+        self, 
+        symptoms: List[str], 
+        vitals: Dict,
+        medical_history: List[str] = None
+    ) -> Dict:
+        """Fallback basé sur règles."""
+        flags = []
+        
+        # Extraire flags des constantes
+        _, vital_flags = self._check_vital_emergency_rules(
+            {}patient_info, vitals)
+        flags.extend(vital_flags)
 
+        # Déterminer sévérité
         if len(flags) >= 3:
             sev = "ROUGE"
         elif len(flags) >= 1:
@@ -295,18 +319,16 @@ class MLTriagePredictor:
             "action": self.severity_levels[sev]["action"],
             "color": self.severity_levels[sev]["color"],
             "red_flags": flags,
-            "justification": f"Règles\n\n{', '.join(flags) or 'Aucun signe'}",
+            "justification": f"**Règles métier (fallback)**\n\n{', '.join(flags) or 'Aucun signe de gravité'}",
             "probabilities": {sev: 1.0},
             "confidence": 0.5,
             "rag_sources": [],
+            "features_used": {},
         }
 
-    def _track(self, result: Dict, patient: Dict, duration: float):
-        """Track."""
+    def _track(self, result: Dict, patient_info: Dict, duration: float):
+        """Track métriques."""
         try:
-            import sys
-            from pathlib import Path
-
             sys.path.insert(0, str(Path(__file__).parent.parent))
             from src.monitoring.metrics_tracker import get_tracker
 
@@ -314,8 +336,8 @@ class MLTriagePredictor:
 
             t.track_prediction(
                 severity=result["severity_level"],
-                age=patient.get("age", 0),
-                sex=patient.get("sex", "?")[0] if patient.get("sex") else "?",
+                age=patient_info.get("age", 0),
+                sex=patient_info.get("sex", "?"),
                 symptoms=[],
                 red_flags=result["red_flags"],
                 confidence=result["confidence"],
@@ -325,5 +347,13 @@ class MLTriagePredictor:
         except:
             pass
 
+    def _track_rag_latency(self, duration: float):
+        """Track latence RAG."""
+        try:
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from src.monitoring.metrics_tracker import get_tracker
+            get_tracker().track_latency("RAG", "retrieve", duration)
+        except:
+            pass
     def predict_with_probabilities(self, chatbot_summary: Dict) -> Dict:
         return self.predict(chatbot_summary)
