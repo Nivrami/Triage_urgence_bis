@@ -21,9 +21,9 @@ class TriageChatbotAPI:
             api_key: Clé API Mistral
             retriever: RAG retriever pour contexte médical
             patient_data: Données pré-remplies du formulaire {
-                'Numéro patient': str,
+                'patient_id': str,
                 'age': int,
-                'genre': 'Homme' ou 'Femme' ou 'Autre',
+                'sex': 'H' ou 'F' ou 'A',
                 'vitals': {
                     'Temperature': float,
                     'FC': int,
@@ -49,12 +49,74 @@ class TriageChatbotAPI:
 
     def start(self) -> str:
         """Message d'accueil personnalisé avec données du formulaire."""
+       python"""
+Chatbot Final - Mistral API ROBUSTE avec Monitoring
+Version mise à jour avec patient_info et vitals
+"""
+
+import re
+import time
+import os
+from typing import Dict, Optional
+from mistralai import Mistral
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class TriageChatbotAPI:
+    """Chatbot Mistral API robuste avec tracking complet."""
+
+    def __init__(self, api_key: str = None, retriever=None, patient_data: Dict = None):
+        """
+        Args:
+            api_key: Clé API Mistral
+            retriever: RAG retriever pour contexte médical
+            patient_data: Données pré-remplies du formulaire {
+                'patient_id': str,
+                'age': int,
+                'sex': 'H' ou 'F' ou 'A',
+                'vitals': {
+                    'Temperature': float,
+                    'FC': int,
+                    'TA_systolique': int,
+                    'TA_diastolique': int,
+                    'SpO2': int,
+                    'FR': int
+                }
+            }
+        """
+        self.api_key = api_key or os.getenv("MISTRAL_API_KEY")
+        self.retriever = retriever
+        
+        if self.api_key:
+            self.client = Mistral(api_key=self.api_key)
+            self.use_api = True
+            print("[OK] Mistral API activee")
+        else:
+            self.use_api = False
+            print("[WARN] Mode regles (sans API)")
+
+        # Initialiser avec données formulaire
+        self.reset(patient_data)
+
+    def start(self) -> str:
+        """Message d'accueil personnalisé avec données du formulaire."""
         age = self.data.get('age', '?')
-        genre = "Homme" if self.data.get("genre") == "Homme" else "Femme" if self.data.get("genre") == "Femme" else "Patient"
-        patient_id = self.data.get('num_patient', '?')
+        sex_code = self.data.get('sex', '?')
+        
+        # Conversion H/F/A → texte
+        gender_display = (
+            "Homme" if sex_code == "H" 
+            else "Femme" if sex_code == "F" 
+            else "Patient"
+        )
+        
+        patient_id = self.data.get('patient_id', '?')
+        
         
         msg = f"Bonjour. Je vais vous poser quelques questions sur vos symptômes.\n\n"
-        msg += f"**Dossier patient N°{patient_id}** - {genre}, {age} ans\n"
+        msg += f"**Dossier patient N°{patient_id}** - {gender_display}, {age} ans\n"
         msg += f"Constantes enregistrées ✓\n\n"
         msg += f"**Quel est votre symptôme principal aujourd'hui ?**"
         
@@ -210,13 +272,17 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
         parts = []
 
        # Identité (du formulaire)
-        if self.data.get("num_patient"):
-            parts.append(f"ID: {self.data['num_patient']}")
+        if self.data.get("patient_id"):
+            parts.append(f"ID: {self.data['patient_id']}")
         if self.data.get("age"):
             parts.append(f"Âge: {self.data['age']} ans")
-        if self.data.get("genre"):
-            genre = "Homme" if self.data.get("genre") == "Homme" else "Femme" if self.data.get("genre") == "Femme" else "Patient"
-            parts.append(f"Genre: {genre}")
+        if self.data.get("sex"):
+            sex_display = (
+                "Homme" if self.data["sex"] == "H" 
+                else "Femme" if self.data["sex"] == "F" 
+                else "Patient"
+            )
+            parts.append(f"Genre: {sex_display}")
             
         if self.data.get("symptoms"):
             parts.append(f"Symptômes: {', '.join(self.data['symptoms'])}")
@@ -224,15 +290,15 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
         v = self.data["vitals"]
         vitals_collected = []
         if "Temperature" in v:
-            vitals_collected.append(f"Temp: {v['temp']}°C")
+            vitals_collected.append(f"T°={v['Temperature']}°C")
         if "FC" in v:
-            vitals_collected.append(f"FC: {v['fc']} bpm")
+            vitals_collected.append(f"FC={v['FC']}bpm")
         if "TA_systolique" in v:
-            vitals_collected.append(f"TA: {v['tas']}/{v.get('tad', '?')}")
+            vitals_collected.append(f"TA={v['TA_systolique']}/{v.get('TA_diastolique', '?')}")
         if "SpO2" in v:
-            vitals_collected.append(f"SpO2: {v['spo2']}%")
+            vitals_collected.append(f"SpO2={v['SpO2']}%")
         if "FR" in v:
-            vitals_collected.append(f"FR: {v['fr']}/min")
+            vitals_collected.append(f"FR={v['FR']}/min")
 
         if vitals_collected:
             parts.append(f"Constantes: {', '.join(vitals_collected)}")
@@ -521,7 +587,7 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
         """Vérifie si collecte complète (symptômes + historique minimal)."""
         return (
             self.data.get("age")  # Du formulaire
-            and self.data.get("genre")  # Du formulaire
+            and self.data.get("sex")  # Du formulaire
             and len(self.data["vitals"]) >= 5  # Du formulaire
             and self.data.get("symptoms")  # Du chatbot
             and self.data.get("medical_history_asked")  # Du chatbot
@@ -533,7 +599,7 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
             "patient_info": {
                 "patient_id": self.data.get("num_patient"),
                 "age": self.data.get("age"),
-                "genre": "Homme" if self.data.get("genre") == "Homme" else "Femme" if self.data.get("genre") == "Femme" else "Patient",
+                "sex": self.data.get("sex"),
             },
             "symptoms": self.data.get("symptoms", []),
             "vitals": self.data["vitals"],
@@ -551,9 +617,9 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
         """Reset avec données formulaire pré-remplies."""
         self.data = {
             # Données du FORMULAIRE (pré-remplies)
-            "patient_id": patient_data.get("num_patient") if patient_data else None,
+            "patient_id": patient_data.get("patient_id") if patient_data else None,
             "age": patient_data.get("age") if patient_data else None,
-            "sex": patient_data.get("genre") if patient_data else None,
+            "sex": patient_data.get("sex") if patient_data else None,
             "vitals": patient_data.get("vitals", {}) if patient_data else {},
             
             # Données collectées par le CHATBOT
