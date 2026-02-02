@@ -10,12 +10,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.rag.chatbot import TriageChatbotAPI
 from src.rag.predictor import MLTriagePredictor
+from src.rag.entry_forms import render_entry_forms
 
 # Config
 st.set_page_config(page_title="Chatbot Triage ML", page_icon="🏥", layout="wide")
 
 st.title("🏥 Chatbot de Triage des Urgences")
 st.markdown("*Assistant ML pour aide à la décision*")
+
+ # --- Formulaires "Identité" et "Constantes" ---
+render_entry_forms()
+st.divider()
 
 # Session
 if "chatbot" not in st.session_state:
@@ -54,10 +59,10 @@ with st.sidebar:
     st.header("🧑‍⚕️ Dossier patient")
 
     st.subheader("Identité")
-    st.write(f"**Prénom:** {data.get('name') or '—'}")
+    st.write(f"**N° patient:** {data.get('num_patient') or '—'}")
     st.write(f"**Âge:** {data.get('age') or '—'}")
-    sex = "Homme" if data.get("sex") == "H" else "Femme" if data.get("sex") == "F" else "—"
-    st.write(f"**Sexe:** {sex}")
+    sex = "Homme" if data.get("genre") == "Homme" else "Femme" if data.get("genre") == "Femme" else "—"
+    st.write(f"**Genre:** {sex}")
     st.divider()
 
     st.subheader("Symptômes")
@@ -74,15 +79,15 @@ with st.sidebar:
     st.write(f"**Progression: {count}/5**")
     if v:
         if "Temperature" in v:
-            st.write(f"🌡️ Temp: {v['Temperature']}°C")
+            st.write(f"🌡️ Temp: {v['temp']}°C")
         if "FC" in v:
-            st.write(f"❤️ FC: {v['FC']} bpm")
+            st.write(f"❤️ FC: {v['fc']} bpm")
         if "TA_systolique" in v:
-            st.write(f"💉 TA: {v['TA_systolique']}/{v.get('TA_diastolique', '?')}")
+            st.write(f"💉 TA: {v['tas']}/{v.get('tad', '?')}")
         if "SpO2" in v:
-            st.write(f"🫁 SpO2: {v['SpO2']}%")
+            st.write(f"🫁 SpO2: {v['spo2']}%")
         if "FR" in v:
-            st.write(f"🌬️ FR: {v['FR']}/min")
+            st.write(f"🌬️ FR: {v['fr']}/min")
     else:
         st.write("—")
     st.divider()
