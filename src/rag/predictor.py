@@ -19,17 +19,17 @@ class MLTriagePredictor:
 
         try:
             self.model = joblib.load(model_path)
-            print(f"✅ Modèle ML chargé")
+            print("[OK] Modele ML charge")
         except Exception as e:
-            print(f"❌ Erreur modèle: {e}")
+            print(f"[ERREUR] Modele: {e}")
             self.model = None
 
         # RAG
         self.rag = rag_retriever
         if self.rag:
-            print("✅ RAG activé")
+            print("[OK] RAG active")
         else:
-            print("⚠️ RAG désactivé")
+            print("[WARN] RAG desactive")
 
         self.severity_levels = {
             "ROUGE": {"label": "🔴 URGENCE VITALE", "action": "APPELER LE 15", "color": "#FF0000"},

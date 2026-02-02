@@ -175,7 +175,7 @@ IMPORTANT :
             return patient
 
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"❌ Erreur extraction : {e}")
+            print(f"[ERREUR] Extraction : {e}")
             print(f"Réponse LLM : {response[:200]}...")
             # Retourner patient vide plutôt que crash
             return Patient()

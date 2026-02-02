@@ -34,13 +34,13 @@ def test_simulation():
 
     # Export ML
     print("\n" + "=" * 60)
-    print("💾 DONNÉES POUR ML")
+    print("[INFO] DONNEES POUR ML")
     print("=" * 60)
     ml_data = workflow.export_for_ml()
     print(json.dumps(ml_data, indent=2, ensure_ascii=False))
 
     print("\n" + "=" * 70)
-    print("✅ TEST TERMINÉ")
+    print("[OK] TEST TERMINE")
     print("=" * 70)
 
     return result

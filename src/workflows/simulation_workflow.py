@@ -104,11 +104,11 @@ class SimulationWorkflow:
             if turn >= 6:  # Minimum 6 questions
                 completeness = self.analyzer.get_completeness_score(self.extracted_patient)
                 if completeness["score"] > 0.7:  # 70% d'infos
-                    print("✅ Informations suffisantes collectées.")
+                    print("[OK] Informations suffisantes collectees.")
                     break
 
         # 6. L'infirmier MESURE les constantes
-        print("\n🩺 L'infirmier mesure les constantes vitales...")
+        print("\n[INFO] L'infirmier mesure les constantes vitales...")
         print(f"   FC : {self.original_patient.constantes.fc} bpm")
         print(f"   FR : {self.original_patient.constantes.fr} /min")
         print(f"   SpO2 : {self.original_patient.constantes.spo2}%")
@@ -119,12 +119,12 @@ class SimulationWorkflow:
 
         # 7. Extraction finale
         print("\n" + "=" * 60)
-        print("🔍 EXTRACTION")
+        print("[EXTRACTION]")
         print("=" * 60)
         self.extracted_patient = self.analyzer.extract_patient_info(self.conversation)
         completeness = self.analyzer.get_completeness_score(self.extracted_patient)
 
-        print(f"✅ Complétude : {completeness['score']*100:.0f}%")
+        print(f"[OK] Completude : {completeness['score']*100:.0f}%")
         if completeness["missing"]:
             print(f"   Infos manquantes : {', '.join(completeness['missing'])}")
         else:

@@ -117,7 +117,7 @@ class BaseAgent(ABC):
         try:
             return json.loads(response_clean.strip())
         except json.JSONDecodeError as e:
-            print(f"❌ Erreur parsing JSON pour {self.name}: {e}")
+            print(f"[ERREUR] Parsing JSON pour {self.name}: {e}")
             print(f"Réponse brute: {response[:200]}...")
             raise
 

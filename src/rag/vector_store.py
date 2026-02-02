@@ -35,10 +35,10 @@ class VectorStore:
             settings=Settings(anonymized_telemetry=False, allow_reset=True),
         )
 
-        # Charger le modèle d'embeddings
-        print(f"📥 Chargement modèle embeddings: {embedding_model}")
+        # Charger le modele d'embeddings
+        print(f"[INFO] Chargement modele embeddings: {embedding_model}")
         self.embedding_model = SentenceTransformer(embedding_model)
-        print("✅ Modèle chargé")
+        print("[OK] Modele charge")
 
         # Créer ou récupérer collection
         self.collection_name = collection_name
@@ -50,7 +50,7 @@ class VectorStore:
             # Essayer de récupérer collection existante
             collection = self.client.get_collection(name=self.collection_name)
             print(
-                f"✅ Collection '{self.collection_name}' chargée ({collection.count()} documents)"
+                f"[OK] Collection '{self.collection_name}' chargee ({collection.count()} documents)"
             )
         except:
             # Créer nouvelle collection
@@ -58,7 +58,7 @@ class VectorStore:
                 name=self.collection_name,
                 metadata={"description": "Base de connaissances médicales pour triage"},
             )
-            print(f"✅ Collection '{self.collection_name}' créée")
+            print(f"[OK] Collection '{self.collection_name}' creee")
 
         return collection
 
@@ -70,10 +70,10 @@ class VectorStore:
             chunks: Liste de dicts {content, metadata}
         """
         if not chunks:
-            print("⚠️ Aucun chunk à ajouter")
+            print("[WARN] Aucun chunk a ajouter")
             return
 
-        print(f"\n📤 Indexation de {len(chunks)} chunks...")
+        print(f"\n[INFO] Indexation de {len(chunks)} chunks...")
 
         # Préparer les données
         documents = []
@@ -93,20 +93,20 @@ class VectorStore:
             metadatas.append(metadata)
             ids.append(f"doc_{i}")
 
-        # Générer embeddings
-        print("🧮 Génération des embeddings...")
+        # Generer embeddings
+        print("[INFO] Generation des embeddings...")
         embeddings = self.embedding_model.encode(
             documents, show_progress_bar=True, convert_to_numpy=True
         ).tolist()
 
-        # Ajouter à ChromaDB
-        print("💾 Ajout à ChromaDB...")
+        # Ajouter a ChromaDB
+        print("[INFO] Ajout a ChromaDB...")
         self.collection.add(
             embeddings=embeddings, documents=documents, metadatas=metadatas, ids=ids
         )
 
-        print(f"✅ {len(chunks)} chunks indexés")
-        print(f"📊 Total collection : {self.collection.count()} documents")
+        print(f"[OK] {len(chunks)} chunks indexes")
+        print(f"[INFO] Total collection : {self.collection.count()} documents")
 
     def search(
         self, query: str, n_results: int = 5, filter_metadata: Optional[Dict] = None
@@ -145,11 +145,11 @@ class VectorStore:
         return formatted_results
 
     def clear_collection(self) -> None:
-        """Vide complètement la collection."""
-        print(f"🗑️ Suppression collection '{self.collection_name}'...")
+        """Vide completement la collection."""
+        print(f"[INFO] Suppression collection '{self.collection_name}'...")
         self.client.delete_collection(name=self.collection_name)
         self.collection = self._get_or_create_collection()
-        print("✅ Collection réinitialisée")
+        print("[OK] Collection reinitialisee")
 
     def get_stats(self) -> Dict:
         """Retourne des statistiques sur la collection."""
@@ -247,25 +247,25 @@ def build_vector_store(
 
     vector_store = VectorStore(persist_directory=persist_dir)
 
-    # Si déjà des documents et pas force_rebuild, ne rien faire
+    # Si deja des documents et pas force_rebuild, ne rien faire
     if vector_store.collection.count() > 0 and not force_rebuild:
-        print("✅ Vector store déjà initialisée")
+        print("[OK] Vector store deja initialisee")
         stats = vector_store.get_stats()
-        print(f"📊 {stats['total_documents']} documents indexés")
+        print(f"[INFO] {stats['total_documents']} documents indexes")
         return vector_store
 
     # Sinon, charger et indexer
     if force_rebuild:
         vector_store.clear_collection()
 
-    print("\n📚 Chargement des documents...")
+    print("\n[INFO] Chargement des documents...")
     loader = DocumentLoader(documents_dir)
     chunks = loader.load_and_chunk_all(chunk_size=800, overlap=150)
 
-    print("\n🗄️ Indexation dans ChromaDB...")
+    print("\n[INFO] Indexation dans ChromaDB...")
     vector_store.add_documents(chunks)
 
-    print("\n✅ Vector store prête !")
+    print("\n[OK] Vector store prete !")
     return vector_store
 
 
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     ]
 
     for query in queries:
-        print(f"\n🔍 Query: {query}")
+        print(f"\n[QUERY] {query}")
         print("-" * 70)
 
         context = retriever.retrieve_context(query, top_k=2)

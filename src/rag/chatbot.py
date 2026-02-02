@@ -22,10 +22,10 @@ class TriageChatbotAPI:
             self.client = Mistral(api_key=self.api_key)
             self.use_api = True
 
-            print("✅ Mistral API activée")
+            print("[OK] Mistral API activee")
         else:
             self.use_api = False
-            print("⚠️ Mode règles (sans API)")
+            print("[WARN] Mode regles (sans API)")
 
         self.reset()
 
@@ -218,7 +218,7 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
             "ta": "Quelle est votre tension ?\nExemple : 120/80",
             "spo2": "Quelle est votre saturation ?\nExemple : 97%",
             "fr": "Quelle est votre fréquence respiratoire ?\nExemple : 16/min",
-            "done": "✅ Dossier complet. Cliquez 'Obtenir prédiction ML'.",
+            "done": "Dossier complet. Cliquez 'Obtenir prediction ML'.",
         }
         return responses.get(step, "Erreur")
 
