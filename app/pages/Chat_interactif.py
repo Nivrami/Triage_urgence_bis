@@ -19,8 +19,8 @@ st.set_page_config(page_title="Chatbot Triage ML", page_icon="🏥", layout="wid
 st.title("🏥 Chatbot de Triage des Urgences")
 st.markdown("*Assistant ML pour aide à la décision*")
 
-# --- Formulaires "Identité" et "Constantes" ---
-render_entry_forms()
+ Afficher les formulaires et récupérer les données
+patient_info, vitals = render_entry_forms()
 st.divider()
 
 # Session
@@ -60,14 +60,22 @@ with st.sidebar:
     st.header("🧑‍⚕️ Dossier patient")
 
     st.subheader("Identité")
-    st.write(f"**N° patient:** {data.get('num_patient') or '—'}")
-    st.write(f"**Âge:** {data.get('age') or '—'}")
-    sex = (
-        "Homme"
-        if data.get("genre") == "Homme"
-        else "Femme" if data.get("genre") == "Femme" else "—"
+    
+    # Récupérer patient_info depuis session_state
+    patient_info = st.session_state.get('patient_info', {})
+    
+    st.write(f"**N° patient:** {patient_info.get('patient_id') or '—'}")
+    st.write(f"**Âge:** {patient_info.get('age') or '—'}")
+    
+    # Convertir le code sex en texte lisible
+    sex_code = patient_info.get('sex', '—')
+    sex_display = (
+        "Homme" if sex_code == "H" 
+        else "Femme" if sex_code == "F" 
+        else "Autre" if sex_code == "A"
+        else "—"
     )
-    st.write(f"**Genre:** {sex}")
+    st.write(f"**Genre:** {sex_display}")
     st.divider()
 
     st.subheader("Symptômes")
@@ -79,20 +87,28 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Constantes vitales")
-    v = data["vitals"]
-    count = len([k for k in ["Temperature", "FC", "TA_systolique", "SpO2", "FR"] if k in v])
+    
+    # Récupérer vitals depuis session_state
+    vitals = st.session_state.get('vitals', {})
+    
+    # Calculer progression (5 constantes attendues)
+    required_vitals = ["Temperature", "FC", "TA_systolique", "SpO2", "FR"]
+    count = sum(1 for key in required_vitals if key in vitals)
+    
     st.write(f"**Progression: {count}/5**")
-    if v:
-        if "Temperature" in v:
-            st.write(f"🌡️ Temp: {v['temp']}°C")
-        if "FC" in v:
-            st.write(f"❤️ FC: {v['fc']} bpm")
-        if "TA_systolique" in v:
-            st.write(f"💉 TA: {v['tas']}/{v.get('tad', '?')}")
-        if "SpO2" in v:
-            st.write(f"🫁 SpO2: {v['spo2']}%")
-        if "FR" in v:
-            st.write(f"🌬️ FR: {v['fr']}/min")
+    
+    if vitals:
+        if "Temperature" in vitals:
+            st.write(f"🌡️ Temp: {vitals['Temperature']}°C")
+        if "FC" in vitals:
+            st.write(f"❤️ FC: {vitals['FC']} bpm")
+        if "TA_systolique" in vitals:
+            ta_dia = vitals.get('TA_diastolique', '?')
+            st.write(f"💉 TA: {vitals['TA_systolique']}/{ta_dia}")
+        if "SpO2" in vitals:
+            st.write(f"🫁 SpO2: {vitals['SpO2']}%")
+        if "FR" in vitals:
+            st.write(f"🌬️ FR: {vitals['FR']}/min")
     else:
         st.write("—")
     st.divider()
