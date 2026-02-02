@@ -19,8 +19,21 @@ st.set_page_config(page_title="Chatbot Triage ML", page_icon="🏥", layout="wid
 st.title("🏥 Chatbot de Triage des Urgences")
 st.markdown("*Assistant ML pour aide à la décision*")
 
+
 # Afficher les formulaires et récupérer les données
-patient_info, vitals = render_entry_forms()
+result = render_entry_forms()
+
+if result is not None:
+    patient_info, vitals = result
+    # On stocke dans le session_state pour que la sidebar y ait accès
+    st.session_state["patient_info"] = patient_info
+    st.session_state["vitals"] = vitals
+else:
+    # Si le formulaire n'est pas validé, on s'assure que les variables existent
+    patient_info, vitals = {}, {}
+    st.info("Veuillez remplir et valider le formulaire patient pour démarrer.")
+    st.stop()  # Optionnel : arrête l'exécution ici tant que le formulaire n'est pas soumis
+
 st.divider()
 
 # Session
@@ -53,6 +66,18 @@ if "chatbot" not in st.session_state:
 
 bot = st.session_state.chatbot
 predictor = st.session_state.predictor
+
+# Synchroniser les données du formulaire avec l'état interne du bot.
+
+if patient_info:
+    bot.data.update(patient_info)
+if vitals:
+    # S'assurer que la clé 'vitals' existe dans bot.data
+    if "vitals" not in bot.data or not isinstance(bot.data["vitals"], dict):
+        bot.data["vitals"] = {}
+    bot.data["vitals"].update(vitals)
+
+# 'data' est maintenant l'état interne du bot, qui est la source de vérité
 data = bot.data
 
 # Sidebar
@@ -60,20 +85,17 @@ with st.sidebar:
     st.header("🧑‍⚕️ Dossier patient")
 
     st.subheader("Identité")
-    
-    # Récupérer patient_info depuis session_state
-    patient_info = st.session_state.get('patient_info', {})
-    
-    st.write(f"**N° patient:** {patient_info.get('patient_id') or '—'}")
-    st.write(f"**Âge:** {patient_info.get('age') or '—'}")
-    
+
+    # Utiliser 'data' (l'état du bot) comme source de vérité
+    st.write(f"**N° patient:** {data.get('patient_id') or '—'}")
+    st.write(f"**Âge:** {data.get('age') or '—'}")
+
     # Convertir le code sex en texte lisible
-    sex_code = patient_info.get('sex', '—')
+    sex_code = data.get("sex", "—")
     sex_display = (
-        "Homme" if sex_code == "H" 
-        else "Femme" if sex_code == "F" 
-        else "Autre" if sex_code == "A"
-        else "—"
+        "Homme"
+        if sex_code == "H"
+        else "Femme" if sex_code == "F" else "Autre" if sex_code == "A" else "—"
     )
     st.write(f"**Genre:** {sex_display}")
     st.divider()
@@ -87,28 +109,28 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Constantes vitales")
-    
-    # Récupérer vitals depuis session_state
-    vitals = st.session_state.get('vitals', {})
-    
+
+    # Utiliser les constantes vitales de l'état du bot
+    vitals_display = data.get("vitals", {})
+
     # Calculer progression (5 constantes attendues)
     required_vitals = ["Temperature", "FC", "TA_systolique", "SpO2", "FR"]
-    count = sum(1 for key in required_vitals if key in vitals)
-    
+    count = sum(1 for key in required_vitals if vitals_display.get(key) is not None)
+
     st.write(f"**Progression: {count}/5**")
-    
-    if vitals:
-        if "Temperature" in vitals:
-            st.write(f"🌡️ Temp: {vitals['Temperature']}°C")
-        if "FC" in vitals:
-            st.write(f"❤️ FC: {vitals['FC']} bpm")
-        if "TA_systolique" in vitals:
-            ta_dia = vitals.get('TA_diastolique', '?')
-            st.write(f"💉 TA: {vitals['TA_systolique']}/{ta_dia}")
-        if "SpO2" in vitals:
-            st.write(f"🫁 SpO2: {vitals['SpO2']}%")
-        if "FR" in vitals:
-            st.write(f"🌬️ FR: {vitals['FR']}/min")
+
+    if vitals_display:
+        if "Temperature" in vitals_display:
+            st.write(f"🌡️ Temp: {vitals_display['Temperature']}°C")
+        if "FC" in vitals_display:
+            st.write(f"❤️ FC: {vitals_display['FC']} bpm")
+        if "TA_systolique" in vitals_display:
+            ta_dia = vitals_display.get("TA_diastolique", "?")
+            st.write(f"💉 TA: {vitals_display['TA_systolique']}/{ta_dia}")
+        if "SpO2" in vitals_display:
+            st.write(f"🫁 SpO2: {vitals_display['SpO2']}%")
+        if "FR" in vitals_display:
+            st.write(f"🌬️ FR: {vitals_display['FR']}/min")
     else:
         st.write("—")
     st.divider()
@@ -131,6 +153,7 @@ with st.sidebar:
     ):
         with st.spinner("🔮 Analyse ML en cours..."):
             summary = bot.get_summary()
+            st.write(summary)
             st.session_state.prediction = predictor.predict(summary)
         st.rerun()
 

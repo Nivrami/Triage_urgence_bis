@@ -8,7 +8,7 @@ from typing import Optional, List, Dict
 def render_entry_forms():
     """Affiche les formulaires d'identité et de constantes au début de la page."""
     st.info("📋 **Saisie des informations cliniques initiales**")
-# Initialiser les dictionnaires de sortie
+    # Initialiser les dictionnaires de sortie
     patient_info = {}
     vitals = {}
 
@@ -26,7 +26,11 @@ def render_entry_forms():
                 # Convertir genre en format H/F
                 gender_code = "H" if genre == "Homme" else "F" if genre == "Femme" else "A"
                 # Créer le dictionnaire patient_info
-                st.session_state.patient_info = {"patient_id": num_patient,"age": age,"sex": sex_code}
+                st.session_state.patient_info = {
+                    "patient_id": num_patient,
+                    "age": age,
+                    "sex": gender_code,
+                }
                 st.toast("Identité enregistrée")
 
     with col2:
@@ -71,7 +75,9 @@ def render_entry_forms():
     # Récupérer patient_info
     if "patient_info" in st.session_state:
         patient_info = st.session_state.patient_info
-    
+
     # Récupérer vitals
     if "vitals" in st.session_state:
         vitals = st.session_state.vitals
+
+    return patient_info, vitals

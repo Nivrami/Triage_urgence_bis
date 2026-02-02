@@ -106,19 +106,23 @@ Retourne uniquement la requête reformulée en français, sans explication.
     @classmethod
     def get_triage_prompt(cls, rag_context: str = "") -> str:
         """Retourne le prompt triage avec contexte RAG optionnel."""
-        pass
+        return cls.SYSTEM_TRIAGE_AGENT.format(rag_context=rag_context)
 
     @classmethod
     def get_patient_simulator_prompt(cls, patient_profile: dict) -> str:
         """Retourne le prompt patient avec le profil injecté."""
-        pass
+        # Formatage du dictionnaire en texte lisible
+        profile_str = "\n".join([f"- {k}: {v}" for k, v in patient_profile.items()])
+        return cls.SYSTEM_PATIENT_SIMULATOR.format(patient_profile=profile_str)
 
     @classmethod
     def get_extraction_prompt(cls, conversation: str) -> str:
         """Retourne le prompt d'extraction avec la conversation."""
-        pass
+        return cls.EXTRACTION_SYMPTOMS.format(conversation=conversation)
 
     @classmethod
     def get_classification_prompt(cls, patient_info: dict, rag_context: str) -> str:
         """Retourne le prompt de classification."""
-        pass
+        # Formatage des infos patient
+        info_str = "\n".join([f"- {k}: {v}" for k, v in patient_info.items()])
+        return cls.CLASSIFICATION_CONTEXT.format(patient_info=info_str, rag_context=rag_context)
