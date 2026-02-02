@@ -1,56 +1,5 @@
 """
 Chatbot Final - Mistral API ROBUSTE avec Monitoring
-"""
-
-import re
-import time
-import os
-from typing import Dict
-from mistralai import Mistral
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-class TriageChatbotAPI:
-    """Chatbot Mistral API robuste avec tracking complet."""
-
-    def __init__(self, api_key: str = None, retriever=None, patient_data: Dict = None):
-        """
-        Args:
-            api_key: Clé API Mistral
-            retriever: RAG retriever pour contexte médical
-            patient_data: Données pré-remplies du formulaire {
-                'patient_id': str,
-                'age': int,
-                'sex': 'H' ou 'F' ou 'A',
-                'vitals': {
-                    'Temperature': float,
-                    'FC': int,
-                    'TA_systolique': int,
-                    'TA_diastolique': int,
-                    'SpO2': int,
-                    'FR': int
-                }
-            }
-        """
-        self.api_key = api_key or os.getenv("MISTRAL_API_KEY")
-        self.retriever = retriever  # RAG retriever
-        if self.api_key:
-            self.client = Mistral(api_key=self.api_key)
-            self.use_api = True
-
-            print("[OK] Mistral API activee")
-        else:
-            self.use_api = False
-            print("[WARN] Mode regles (sans API)")
-
-        self.reset()
-
-    def start(self) -> str:
-        """Message d'accueil personnalisé avec données du formulaire."""
-       python"""
-Chatbot Final - Mistral API ROBUSTE avec Monitoring
 Version mise à jour avec patient_info et vitals
 """
 
