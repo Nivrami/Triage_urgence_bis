@@ -6,8 +6,13 @@ import joblib
 import numpy as np
 import time
 from pathlib import Path
-from typing import Dict, List
-import src.rag.EmergencyRules
+from typing import Dict, List, Optional
+# Import des règles d'urgence
+try:
+    from src.rag.EmergencyRules import check_vital_emergency_rules
+except ImportError:
+    print("[WARN] EmergencyRules non disponible")
+    check_vital_emergency_rules = None
 
 
 class MLTriagePredictor:
@@ -40,49 +45,84 @@ class MLTriagePredictor:
         }
 
     def predict(self, chatbot_summary: Dict) -> Dict:
-        """Prédiction ML + RAG."""
+        """
+        Prédiction ML + RAG avec données enrichies.
+        
+        Args:
+            chatbot_summary: {
+                'patient_info': {'patient_id': str, 'age': int, 'sex': str},
+                'vitals': {'Temperature': float, 'FC': int, ...},
+                'symptoms': List[str],
+                'medical_history': List[str],
+                'current_medications': List[str],
+                'allergies': List[str],
+                'symptom_duration': str,
+                'messages': List[str]
+            }
+        """
         start = time.time()
 
-        patient = chatbot_summary.get("patient_info", {})
+        # Extraire données
+        patient_info = chatbot_summary.get("patient_info", {})
         vitals = chatbot_summary.get("vitals", {})
         symptoms = chatbot_summary.get("symptoms", [])
-        # Red flags
-        flags = self._check_vital_emergency_rules(patient, symptoms)
+        medical_history = chatbot_summary.get("medical_history", [])
+        medications = chatbot_summary.get("current_medications", [])
+        allergies = chatbot_summary.get("allergies", [])
+        duration = chatbot_summary.get("symptom_duration")
+       
+        #  VÉRIFICATION RÈGLES D'URGENCE VITALE
+       
+        is_vital_emergency, red_flags = self._check_vital_emergency_rules(
+            patient_info, vitals, symptoms, medical_history, duration
+        )
 
-        # ML prediction
-        features = self._prep_features(patient, vitals)
+        if is_vital_emergency:
+            # Urgence vitale détectée → ROUGE immédiat
+            result = {
+                "severity_level": "ROUGE",
+                "label": self.severity_levels["ROUGE"]["label"],
+                "action": self.severity_levels["ROUGE"]["action"],
+                "color": self.severity_levels["ROUGE"]["color"],
+                "red_flags": red_flags,
+                "justification": self._justify_vital_emergency(red_flags, patient_info, vitals, symptoms),
+                "probabilities": {"ROUGE": 1.0, "JAUNE": 0.0, "VERT": 0.0, "GRIS": 0.0}, 
+                "confidence": 1.0,
+                "features_used": self._build_features_dict(patient_info, vitals),
+                "rag_sources": [],
+                "method": "Règles d'urgence vitale",
+            }
+            
+            self._track(result, patient_info, time.time() - start)
+            return result
+       
+        # ML PREDICTION
+        features = self._prep_features(patient_info, vitals)
 
         if not self.model or not features:
-            return self._fallback(symptoms, vitals)
+            return self._fallback(symptoms, vitals, medical_history)
 
-        is_vital_emergency, red_flags = self._check_vital_emergency_rules(patient, vitals)
-        
-        if is_vital_emergency:
-            return {
-                'niveau': 'ROUGE',
-                'confiance': 1.0,  # Certitude absolue pour les règles métier
-                'red_flags': red_flags,
-                'score': 5,
-                'methode': 'Règles d\'urgence vitale'
-            }
-        else:
-            try:
-                pred = self.model.predict([features])[0]
-                probas = self.model.predict_proba([features])[0]
+       try:
+            pred = self.model.predict([features])[0]
+            probas = self.model.predict_proba([features])[0]
 
-                classes = ["GRIS", "JAUNE", "ROUGE", "VERT"]
-                severity = classes[pred] if isinstance(pred, (int, np.integer)) else pred
+            classes = ["GRIS", "JAUNE", "ROUGE", "VERT"]
+            severity = classes[pred] if isinstance(pred, (int, np.integer)) else pred
 
-                proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
-                confidence = float(max(probas))
+            proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
+            confidence = float(max(probas))
 
-            except:
-                return self._fallback(symptoms, vitals)
+        except Exception as e:
+            print(f"[ERREUR] Prédiction ML: {e}")
+            return self._fallback(symptoms, vitals, medical_history)
 
-        
+        # AJUSTEMENT DU CONTEXTE MEDICAL
+        severity, adjusted_flags = self._adjust_severity_with_context(
+            severity, red_flags, medical_history, medications, duration, proba_dict
+        )
 
-        # RAG enrichment
-        rag_data = self._rag_enrich(severity, symptoms, flags)
+        # RAG ENRICHMENT
+        rag_data = self._rag_enrich(severity, symptoms, adjusted_flags, medical_history)
 
         # Result
         result = {
@@ -90,20 +130,11 @@ class MLTriagePredictor:
             "label": self.severity_levels[severity]["label"],
             "action": self.severity_levels[severity]["action"],
             "color": self.severity_levels[severity]["color"],
-            "red_flags": flags,
-            "justification": self._justify(severity, flags, features, symptoms, rag_data),
+            "red_flags": ajusted_flags,
+            "justification": self._justify(severity, ajusted_flags, features, symptoms, rag_data, medical_history, medications, allergies, duration),
             "probabilities": proba_dict,
             "confidence": confidence,
-            "features_used": {
-                "FC": features[0],
-                "FR": features[1],
-                "SpO2": features[2],
-                "TA_sys": features[3],
-                "TA_dia": features[4],
-                "Temp": features[5],
-                "Age": features[6],
-                "Sex": "H" if features[7] == 1 else "F",
-            },
+            "features_used": self._build_features_dict(patient_info, vitals),
             "rag_sources": rag_data.get("sources", []) if rag_data else [],
         }
 
