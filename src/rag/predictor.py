@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import Dict, List, Optional
 # Import des règles d'urgence
 try:
-    from src.rag.EmergencyRules import check_vital_emergency_rules
+    from src.rag.EmergencyRules import _check_vital_emergency_rules
 except ImportError:
     print("[WARN] EmergencyRules non disponible")
-    check_vital_emergency_rules = None
+    _check_vital_emergency_rules = None
 
 
 class MLTriagePredictor:
@@ -83,7 +83,7 @@ class MLTriagePredictor:
                 "action": self.severity_levels["ROUGE"]["action"],
                 "color": self.severity_levels["ROUGE"]["color"],
                 "red_flags": red_flags,
-                "justification": self._justify_vital_emergency(red_flags, patient_info, vitals, symptoms),
+                "justification": self._justify(red_flags, patient_info, vitals, symptoms),
                 "probabilities": {"ROUGE": 1.0, "JAUNE": 0.0, "VERT": 0.0, "GRIS": 0.0}, 
                 "confidence": 1.0,
                 "features_used": self._build_features_dict(patient_info, vitals),
@@ -100,7 +100,7 @@ class MLTriagePredictor:
         if not self.model or not features:
             return self._fallback(symptoms, vitals, medical_history)
 
-       try:
+        try:
             pred = self.model.predict([features])[0]
             probas = self.model.predict_proba([features])[0]
 
@@ -116,7 +116,7 @@ class MLTriagePredictor:
 
 
         # RAG ENRICHMENT
-        rag_data = self._rag_enrich(severity, symptoms, adjusted_flags, medical_history)
+        rag_data = self._rag_enrich(severity, symptoms, flags, medical_history)
 
         # Result
         result = {
@@ -124,8 +124,8 @@ class MLTriagePredictor:
             "label": self.severity_levels[severity]["label"],
             "action": self.severity_levels[severity]["action"],
             "color": self.severity_levels[severity]["color"],
-            "red_flags": red_flags,
-            "justification": self._justify(severity, red_flags, features, symptoms, rag_data, medical_history, medications, allergies, duration),
+            "red_flags": flags,
+            "justification": self._justify(severity, flags, features, symptoms, rag_data, medical_history, medications, allergies, duration),
             "probabilities": proba_dict,
             "confidence": confidence,
             "features_used": self._build_features_dict(patient_info, vitals),
@@ -260,7 +260,7 @@ class MLTriagePredictor:
         }
     
     def _justify(
-        self, severity: str, red_flags: List[str], features: List[float], symptoms: List[str], rag: Dict
+        self, severity: str, flags: List[str], features: List[float], symptoms: List[str], rag: Dict
     ) -> str:
         """Justification."""
         j = f"**{self.severity_levels[severity]['label']}**\n\n"
@@ -299,8 +299,7 @@ class MLTriagePredictor:
         flags = []
         
         # Extraire flags des constantes
-        _, vital_flags = self._check_vital_emergency_rules(
-            {}patient_info, vitals)
+        vital_flags = self._check_vital_emergency_rules(patient_info, vitals)
         flags.extend(vital_flags)
 
         # Déterminer sévérité
