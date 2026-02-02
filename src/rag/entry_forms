@@ -8,6 +8,9 @@ from typing import Optional, List, Dict
 def render_entry_forms():
     """Affiche les formulaires d'identité et de constantes au début de la page."""
     st.info("📋 **Saisie des informations cliniques initiales**")
+# Initialiser les dictionnaires de sortie
+    patient_info = {}
+    vitals = {}
 
     col1, col2 = st.columns(2)
 
@@ -20,6 +23,10 @@ def render_entry_forms():
             submit_id = st.form_submit_button("Enregistrer l'identité")
             if submit_id:
                 st.session_state.id_data = {"num": num_patient, "age": age, "genre": genre}
+                # Convertir genre en format H/F
+                gender_code = "H" if genre == "Homme" else "F" if genre == "Femme" else "A"
+                # Créer le dictionnaire patient_info
+                st.session_state.patient_info = {"patient_id": num_patient,"age": age,"sex": sex_code}
                 st.toast("Identité enregistrée")
 
     with col2:
@@ -47,4 +54,24 @@ def render_entry_forms():
                     "tad": tad,
                     "spo2": spo2,
                 }
+
+                # Créer le dictionnaire vitals (format standardisé pour ML/Chatbot)
+                st.session_state.vitals = {
+                    "Temperature": float(temp),
+                    "FC": int(fc),
+                    "TA_systolique": int(tas),
+                    "TA_diastolique": int(tad),
+                    "SpO2": int(spo2),
+                    "FR": int(fr),
+                }
                 st.toast("Constantes enregistrées")
+    # ══════════════════════════════════════════════════════════
+    # RÉCUPÉRATION DES DONNÉES DEPUIS SESSION_STATE
+    # ══════════════════════════════════════════════════════════
+    # Récupérer patient_info
+    if "patient_info" in st.session_state:
+        patient_info = st.session_state.patient_info
+    
+    # Récupérer vitals
+    if "vitals" in st.session_state:
+        vitals = st.session_state.vitals
