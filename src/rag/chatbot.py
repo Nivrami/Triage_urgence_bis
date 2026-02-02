@@ -150,10 +150,10 @@ Sois concis et professionnel (1-2 phrases).""",
 Une question directe et claire.""",
 
                 "duration": """Demande depuis combien de temps les symptômes ont commencé :
-- Date/heure de début
+- durée depuis le début des symptômes ou date de début
 - Évolution (stable, aggravation, amélioration)
 - Facteurs déclenchants éventuels
-Reste concis (1-2 phrases).""",
+Reste bref (2-3 questions max).""",
 
                 "done": """Toutes les informations cliniques sont collectées.
 Remercie le patient et informe-le que son dossier est maintenant complet.
