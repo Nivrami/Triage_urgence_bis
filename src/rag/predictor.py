@@ -196,54 +196,12 @@ class MLTriagePredictor:
                 vitals.get("TA_diastolique", 80),
                 vitals.get("Temperature", 37.0),
                 patient.get("age", 40),
-                1 if patient.get("sex") in ["Homme", "H"] else 0,
+                1 if patient.get("genre") in ["Homme", "H"] else 0,
             ]
         except:
             return None
 
-    def _red_flags(self, vitals: Dict, symptoms: List[str]) -> List[str]:
-        """Red flags."""
-        flags = []
-
-        fc = vitals.get("FC")
-        if fc:
-            if fc > 120:
-                flags.append(f"Tachycardie ({fc} bpm)")
-            elif fc < 50:
-                flags.append(f"Bradycardie ({fc} bpm)")
-
-        spo2 = vitals.get("SpO2")
-        if spo2 and spo2 < 90:
-            flags.append(f"Hypoxie ({spo2}%)")
-
-        temp = vitals.get("Temperature")
-        if temp:
-            if temp >= 39:
-                flags.append(f"Fièvre élevée ({temp}°C)")
-            elif temp < 36:
-                flags.append(f"Hypothermie ({temp}°C)")
-
-        ta = vitals.get("TA_systolique")
-        if ta:
-            if ta > 160:
-                flags.append(f"Hypertension ({ta})")
-            elif ta < 90:
-                flags.append(f"Hypotension ({ta})")
-
-        fr = vitals.get("FR")
-        if fr:
-            if fr > 25:
-                flags.append(f"Tachypnée ({fr})")
-            elif fr < 10:
-                flags.append(f"Bradypnée ({fr})")
-
-        severe = {"Douleur thoracique": "Douleur thoracique", "Dyspnée": "Détresse respiratoire"}
-        for s in symptoms:
-            if s in severe:
-                flags.append(severe[s])
-
-        return flags
-
+    
     def _justify(
         self, severity: str, flags: List[str], features: List[float], symptoms: List[str], rag: Dict
     ) -> str:
