@@ -37,6 +37,7 @@ class TriageChatbotAPI:
         """
         self.api_key = api_key or os.getenv("MISTRAL_API_KEY")
         self.retriever = retriever
+        self.patient_data = patient_data 
         
         if self.api_key:
             self.client = Mistral(api_key=self.api_key)
@@ -45,9 +46,21 @@ class TriageChatbotAPI:
         else:
             self.use_api = False
             print("[WARN] Mode regles (sans API)")
+        
+        def reset(self):
+        """Reset avec données formulaire pré-remplies."""
+            patient_data = self.patient_data  # ← AJOUTER CETTE LIGNE
+    
+            self.data = {
+            # Données du FORMULAIRE (pré-remplies)
+            "patient_id": patient_data.get("patient_id") if patient_data else None,
+            "age": patient_data.get("age") if patient_data else None,
+            "sex": patient_data.get("sex") if patient_data else None,
+            "vitals": patient_data.get("vitals", {}) if patient_data else {}
+            }
 
         # Initialiser avec données formulaire
-        self.reset(patient_data)
+        self.reset()
 
     def start(self) -> str:
         """Message d'accueil personnalisé avec données du formulaire."""
