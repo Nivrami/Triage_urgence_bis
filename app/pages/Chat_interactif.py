@@ -19,7 +19,7 @@ st.set_page_config(page_title="Chatbot Triage ML", page_icon="🏥", layout="wid
 st.title("🏥 Chatbot de Triage des Urgences")
 st.markdown("*Assistant ML pour aide à la décision*")
 
- Afficher les formulaires et récupérer les données
+# Afficher les formulaires et récupérer les données
 patient_info, vitals = render_entry_forms()
 st.divider()
 
