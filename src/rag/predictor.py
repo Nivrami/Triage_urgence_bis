@@ -7,6 +7,7 @@ import numpy as np
 import time
 from pathlib import Path
 from typing import Dict, List
+import src.rag.EmergencyRules
 
 
 class MLTriagePredictor:
@@ -45,6 +46,8 @@ class MLTriagePredictor:
         patient = chatbot_summary.get("patient_info", {})
         vitals = chatbot_summary.get("vitals", {})
         symptoms = chatbot_summary.get("symptoms", [])
+        # Red flags
+        flags = self._check_vital_emergency_rules(patient, symptoms)
 
         # ML prediction
         features = self._prep_features(patient, vitals)
@@ -52,21 +55,31 @@ class MLTriagePredictor:
         if not self.model or not features:
             return self._fallback(symptoms, vitals)
 
-        try:
-            pred = self.model.predict([features])[0]
-            probas = self.model.predict_proba([features])[0]
+        is_vital_emergency, red_flags = self._check_vital_emergency_rules(patient, vitals)
+        
+        if is_vital_emergency:
+            return {
+                'niveau': 'ROUGE',
+                'confiance': 1.0,  # Certitude absolue pour les règles métier
+                'red_flags': red_flags,
+                'score': 5,
+                'methode': 'Règles d\'urgence vitale'
+            }
+        else:
+            try:
+                pred = self.model.predict([features])[0]
+                probas = self.model.predict_proba([features])[0]
 
-            classes = ["GRIS", "JAUNE", "ROUGE", "VERT"]
-            severity = classes[pred] if isinstance(pred, (int, np.integer)) else pred
+                classes = ["GRIS", "JAUNE", "ROUGE", "VERT"]
+                severity = classes[pred] if isinstance(pred, (int, np.integer)) else pred
 
-            proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
-            confidence = float(max(probas))
+                proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
+                confidence = float(max(probas))
 
-        except:
-            return self._fallback(symptoms, vitals)
+            except:
+                return self._fallback(symptoms, vitals)
 
-        # Red flags
-        flags = self._red_flags(vitals, symptoms)
+        
 
         # RAG enrichment
         rag_data = self._rag_enrich(severity, symptoms, flags)
@@ -196,54 +209,12 @@ class MLTriagePredictor:
                 vitals.get("TA_diastolique", 80),
                 vitals.get("Temperature", 37.0),
                 patient.get("age", 40),
-                1 if patient.get("sex") in ["Homme", "H"] else 0,
+                1 if patient.get("genre") in ["Homme", "H"] else 0,
             ]
         except:
             return None
 
-    def _red_flags(self, vitals: Dict, symptoms: List[str]) -> List[str]:
-        """Red flags."""
-        flags = []
-
-        fc = vitals.get("FC")
-        if fc:
-            if fc > 120:
-                flags.append(f"Tachycardie ({fc} bpm)")
-            elif fc < 50:
-                flags.append(f"Bradycardie ({fc} bpm)")
-
-        spo2 = vitals.get("SpO2")
-        if spo2 and spo2 < 90:
-            flags.append(f"Hypoxie ({spo2}%)")
-
-        temp = vitals.get("Temperature")
-        if temp:
-            if temp >= 39:
-                flags.append(f"Fièvre élevée ({temp}°C)")
-            elif temp < 36:
-                flags.append(f"Hypothermie ({temp}°C)")
-
-        ta = vitals.get("TA_systolique")
-        if ta:
-            if ta > 160:
-                flags.append(f"Hypertension ({ta})")
-            elif ta < 90:
-                flags.append(f"Hypotension ({ta})")
-
-        fr = vitals.get("FR")
-        if fr:
-            if fr > 25:
-                flags.append(f"Tachypnée ({fr})")
-            elif fr < 10:
-                flags.append(f"Bradypnée ({fr})")
-
-        severe = {"Douleur thoracique": "Douleur thoracique", "Dyspnée": "Détresse respiratoire"}
-        for s in symptoms:
-            if s in severe:
-                flags.append(severe[s])
-
-        return flags
-
+    
     def _justify(
         self, severity: str, flags: List[str], features: List[float], symptoms: List[str], rag: Dict
     ) -> str:

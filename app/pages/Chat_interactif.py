@@ -10,12 +10,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.rag.chatbot import TriageChatbotAPI
 from src.rag.predictor import MLTriagePredictor
+from src.rag.entry_forms import render_entry_forms
+from src.utils.conversation_storage import get_storage
 
 # Config
 st.set_page_config(page_title="Chatbot Triage ML", page_icon="🏥", layout="wide")
 
 st.title("🏥 Chatbot de Triage des Urgences")
 st.markdown("*Assistant ML pour aide à la décision*")
+
+# --- Formulaires "Identité" et "Constantes" ---
+render_entry_forms()
+st.divider()
 
 # Session
 if "chatbot" not in st.session_state:
@@ -54,10 +60,14 @@ with st.sidebar:
     st.header("🧑‍⚕️ Dossier patient")
 
     st.subheader("Identité")
-    st.write(f"**Prénom:** {data.get('name') or '—'}")
+    st.write(f"**N° patient:** {data.get('num_patient') or '—'}")
     st.write(f"**Âge:** {data.get('age') or '—'}")
-    sex = "Homme" if data.get("sex") == "H" else "Femme" if data.get("sex") == "F" else "—"
-    st.write(f"**Sexe:** {sex}")
+    sex = (
+        "Homme"
+        if data.get("genre") == "Homme"
+        else "Femme" if data.get("genre") == "Femme" else "—"
+    )
+    st.write(f"**Genre:** {sex}")
     st.divider()
 
     st.subheader("Symptômes")
@@ -74,15 +84,15 @@ with st.sidebar:
     st.write(f"**Progression: {count}/5**")
     if v:
         if "Temperature" in v:
-            st.write(f"🌡️ Temp: {v['Temperature']}°C")
+            st.write(f"🌡️ Temp: {v['temp']}°C")
         if "FC" in v:
-            st.write(f"❤️ FC: {v['FC']} bpm")
+            st.write(f"❤️ FC: {v['fc']} bpm")
         if "TA_systolique" in v:
-            st.write(f"💉 TA: {v['TA_systolique']}/{v.get('TA_diastolique', '?')}")
+            st.write(f"💉 TA: {v['tas']}/{v.get('tad', '?')}")
         if "SpO2" in v:
-            st.write(f"🫁 SpO2: {v['SpO2']}%")
+            st.write(f"🫁 SpO2: {v['spo2']}%")
         if "FR" in v:
-            st.write(f"🌬️ FR: {v['FR']}/min")
+            st.write(f"🌬️ FR: {v['fr']}/min")
     else:
         st.write("—")
     st.divider()
@@ -107,6 +117,57 @@ with st.sidebar:
             summary = bot.get_summary()
             st.session_state.prediction = predictor.predict(summary)
         st.rerun()
+
+    # Section Sauvegarde
+    st.divider()
+    st.subheader("💾 Sauvegardes")
+
+    # Bouton sauvegarder
+    can_save = st.session_state.started and len(st.session_state.messages) > 0
+    if st.button(
+        "💾 Sauvegarder conversation",
+        use_container_width=True,
+        disabled=not can_save,
+        help="Sauvegarde la conversation actuelle",
+    ):
+        storage = get_storage()
+        conv_id = storage.save_conversation(
+            messages=st.session_state.messages,
+            patient_data=data,
+            prediction=st.session_state.prediction,
+        )
+        st.success(f"Sauvegarde: {conv_id}")
+
+    # Liste des conversations sauvegardees
+    with st.expander("📂 Conversations sauvegardees"):
+        storage = get_storage()
+        conversations = storage.list_conversations(limit=10)
+
+        if conversations:
+            for conv in conversations:
+                col_info, col_load = st.columns([3, 1])
+                with col_info:
+                    name = conv.get("patient_name", "?")
+                    sev = conv.get("severity") or "—"
+                    ts = conv.get("timestamp", "")[:10]
+                    st.caption(f"{ts} | {name} | {sev}")
+                with col_load:
+                    if st.button("📥", key=f"load_{conv['id']}", help="Charger"):
+                        loaded = storage.load_conversation(conv["id"])
+                        if loaded:
+                            # Restaurer la conversation
+                            st.session_state.messages = loaded.get("messages", [])
+                            patient = loaded.get("patient_data", {})
+                            bot.data["name"] = patient.get("name")
+                            bot.data["age"] = patient.get("age")
+                            bot.data["sex"] = patient.get("sex")
+                            bot.data["symptoms"] = patient.get("symptoms", [])
+                            bot.data["vitals"] = patient.get("vitals", {})
+                            st.session_state.prediction = loaded.get("prediction")
+                            st.session_state.started = True
+                            st.rerun()
+        else:
+            st.caption("Aucune sauvegarde")
 
 # Conversation
 col1, col2 = st.columns([2, 1])
