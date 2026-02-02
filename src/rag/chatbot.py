@@ -49,7 +49,7 @@ class TriageChatbotAPI:
         
         def reset(self):
         """Reset avec données formulaire pré-remplies."""
-            patient_data = self.patient_data  # ← AJOUTER CETTE LIGNE
+            patient_data = self.patient_data 
     
             self.data = {
             # Données du FORMULAIRE (pré-remplies)
