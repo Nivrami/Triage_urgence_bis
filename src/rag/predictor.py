@@ -7,6 +7,7 @@ import numpy as np
 import time
 from pathlib import Path
 from typing import Dict, List
+import src.rag.EmergencyRules
 
 
 class MLTriagePredictor:
@@ -45,6 +46,8 @@ class MLTriagePredictor:
         patient = chatbot_summary.get("patient_info", {})
         vitals = chatbot_summary.get("vitals", {})
         symptoms = chatbot_summary.get("symptoms", [])
+        # Red flags
+        flags = self._check_vital_emergency_rules(patient, symptoms)
 
         # ML prediction
         features = self._prep_features(patient, vitals)
@@ -52,21 +55,31 @@ class MLTriagePredictor:
         if not self.model or not features:
             return self._fallback(symptoms, vitals)
 
-        try:
-            pred = self.model.predict([features])[0]
-            probas = self.model.predict_proba([features])[0]
+        is_vital_emergency, red_flags = self._check_vital_emergency_rules(patient, vitals)
+        
+        if is_vital_emergency:
+            return {
+                'niveau': 'ROUGE',
+                'confiance': 1.0,  # Certitude absolue pour les règles métier
+                'red_flags': red_flags,
+                'score': 5,
+                'methode': 'Règles d\'urgence vitale'
+            }
+        else:
+            try:
+                pred = self.model.predict([features])[0]
+                probas = self.model.predict_proba([features])[0]
 
-            classes = ["GRIS", "JAUNE", "ROUGE", "VERT"]
-            severity = classes[pred] if isinstance(pred, (int, np.integer)) else pred
+                classes = ["GRIS", "JAUNE", "ROUGE", "VERT"]
+                severity = classes[pred] if isinstance(pred, (int, np.integer)) else pred
 
-            proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
-            confidence = float(max(probas))
+                proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
+                confidence = float(max(probas))
 
-        except:
-            return self._fallback(symptoms, vitals)
+            except:
+                return self._fallback(symptoms, vitals)
 
-        # Red flags
-        flags = self._red_flags(vitals, symptoms)
+        
 
         # RAG enrichment
         rag_data = self._rag_enrich(severity, symptoms, flags)
