@@ -6,7 +6,14 @@ import joblib
 import numpy as np
 import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+# Import des règles d'urgence
+try:
+    from src.rag.EmergencyRules import _check_vital_emergency_rules
+except ImportError:
+    print("[WARN] EmergencyRules non disponible")
+    _check_vital_emergency_rules = None
 
 
 class MLTriagePredictor:
@@ -39,18 +46,60 @@ class MLTriagePredictor:
         }
 
     def predict(self, chatbot_summary: Dict) -> Dict:
-        """Prédiction ML + RAG."""
+        """
+        Prédiction ML + RAG avec données enrichies.
+
+        Args:
+            chatbot_summary: {
+                'patient_info': {'patient_id': str, 'age': int, 'sex': str},
+                'vitals': {'Temperature': float, 'FC': int, ...},
+                'symptoms': List[str],
+                'medical_history': List[str],
+                'current_medications': List[str],
+                'allergies': List[str],
+                'symptom_duration': str,
+                'messages': List[str]
+            }
+        """
         start = time.time()
 
-        patient = chatbot_summary.get("patient_info", {})
+        # Extraire données
+        patient_info = chatbot_summary.get("patient_info", {})
         vitals = chatbot_summary.get("vitals", {})
         symptoms = chatbot_summary.get("symptoms", [])
+        medical_history = chatbot_summary.get("medical_history", [])
+        medications = chatbot_summary.get("current_medications", [])
+        allergies = chatbot_summary.get("allergies", [])
+        duration = chatbot_summary.get("symptom_duration")
 
-        # ML prediction
-        features = self._prep_features(patient, vitals)
+        #  VÉRIFICATION RÈGLES D'URGENCE VITALE
+
+        is_vital_emergency, red_flags = self._check_vital_emergency_rules(patient_info, vitals)
+
+        if is_vital_emergency:
+            # Urgence vitale détectée → ROUGE immédiat
+            result = {
+                "severity_level": "ROUGE",
+                "label": self.severity_levels["ROUGE"]["label"],
+                "action": self.severity_levels["ROUGE"]["action"],
+                "color": self.severity_levels["ROUGE"]["color"],
+                "red_flags": red_flags,
+                "justification": self._justify(red_flags, patient_info, vitals, symptoms),
+                "probabilities": {"ROUGE": 1.0, "JAUNE": 0.0, "VERT": 0.0, "GRIS": 0.0},
+                "confidence": 1.0,
+                "features_used": self._build_features_dict(patient_info, vitals),
+                "rag_sources": [],
+                "method": "Règles d'urgence",
+            }
+
+            self._track(result, patient_info, time.time() - start)
+            return result
+
+        # ML PREDICTION
+        features = self._prep_features(patient_info, vitals)
 
         if not self.model or not features:
-            return self._fallback(symptoms, vitals)
+            return self._fallback(symptoms, vitals, medical_history, patient_info)
 
         try:
             pred = self.model.predict([features])[0]
@@ -62,44 +111,45 @@ class MLTriagePredictor:
             proba_dict = {classes[i]: float(probas[i]) for i in range(4)}
             confidence = float(max(probas))
 
-        except:
-            return self._fallback(symptoms, vitals)
+        except Exception as e:
+            print(f"[ERREUR] Prédiction ML: {e}")
+            return self._fallback(symptoms, vitals, medical_history, patient_info)
 
-        # Red flags
-        flags = self._red_flags(vitals, symptoms)
+        # RAG ENRICHMENT
+        rag_data = self._rag_enrich(severity, symptoms, red_flags, medical_history)
 
-        # RAG enrichment
-        rag_data = self._rag_enrich(severity, symptoms, flags)
-
-        # Result
+        # Resultat
         result = {
             "severity_level": severity,
             "label": self.severity_levels[severity]["label"],
             "action": self.severity_levels[severity]["action"],
             "color": self.severity_levels[severity]["color"],
-            "red_flags": flags,
-            "justification": self._justify(severity, flags, features, symptoms, rag_data),
+            "red_flags": red_flags,
+            "justification": self._justify(
+                severity,
+                red_flags,
+                features,
+                symptoms,
+                rag_data,
+                medical_history,
+                medications,
+                allergies,
+                duration,
+            ),
             "probabilities": proba_dict,
             "confidence": confidence,
-            "features_used": {
-                "FC": features[0],
-                "FR": features[1],
-                "SpO2": features[2],
-                "TA_sys": features[3],
-                "TA_dia": features[4],
-                "Temp": features[5],
-                "Age": features[6],
-                "Sex": "H" if features[7] == 1 else "F",
-            },
+            "features_used": self._build_features_dict(patient_info, vitals),
             "rag_sources": rag_data.get("sources", []) if rag_data else [],
         }
 
         # Track
-        self._track(result, patient, time.time() - start)
+        self._track(result, patient_info, time.time() - start)
 
         return result
 
-    def _rag_enrich(self, severity: str, symptoms: List[str], flags: List[str]) -> Dict:
+    def _rag_enrich(
+        self, severity: str, symptoms: List[str], flags: List[str], medical_history: List[str]
+    ) -> Dict:
         """RAG enrichissement."""
         if not self.rag:
             return None
@@ -113,6 +163,9 @@ class MLTriagePredictor:
 
             if flags:
                 q_parts.append(flags[0])
+
+            if medical_history:
+                q_parts.append(f"antécédents de {', '.join(medical_history)}")
 
             query = " ".join(q_parts)
 
@@ -185,8 +238,14 @@ class MLTriagePredictor:
 
         return result
 
-    def _prep_features(self, patient: Dict, vitals: Dict) -> List[float]:
-        """[FC, FR, SpO2, TA_sys, TA_dia, Temp, Age, Sex]."""
+    def _prep_features(self, patient_info: Dict, vitals: Dict) -> Optional[List[float]]:
+        """
+        Prépare features ML: [FC, FR, SpO2, TA_sys, TA_dia, Temp, Age, Sex].
+
+        Args:
+            patient_info: {'patient_id': str, 'age': int, 'sex': 'H'/'F'}
+            vitals: {'Temperature': float, 'FC': int, ...}
+        """
         try:
             return [
                 vitals.get("FC", 75),
@@ -195,57 +254,37 @@ class MLTriagePredictor:
                 vitals.get("TA_systolique", 120),
                 vitals.get("TA_diastolique", 80),
                 vitals.get("Temperature", 37.0),
-                patient.get("age", 40),
-                1 if patient.get("sex") in ["Homme", "H"] else 0,
+                patient_info.get("age", 40),
+                1 if patient_info.get("sex") == "H" else 0,
             ]
-        except:
+        except Exception as e:
+            print(f"[ERREUR] Préparation features: {e}")
             return None
 
-    def _red_flags(self, vitals: Dict, symptoms: List[str]) -> List[str]:
-        """Red flags."""
-        flags = []
-
-        fc = vitals.get("FC")
-        if fc:
-            if fc > 120:
-                flags.append(f"Tachycardie ({fc} bpm)")
-            elif fc < 50:
-                flags.append(f"Bradycardie ({fc} bpm)")
-
-        spo2 = vitals.get("SpO2")
-        if spo2 and spo2 < 90:
-            flags.append(f"Hypoxie ({spo2}%)")
-
-        temp = vitals.get("Temperature")
-        if temp:
-            if temp >= 39:
-                flags.append(f"Fièvre élevée ({temp}°C)")
-            elif temp < 36:
-                flags.append(f"Hypothermie ({temp}°C)")
-
-        ta = vitals.get("TA_systolique")
-        if ta:
-            if ta > 160:
-                flags.append(f"Hypertension ({ta})")
-            elif ta < 90:
-                flags.append(f"Hypotension ({ta})")
-
-        fr = vitals.get("FR")
-        if fr:
-            if fr > 25:
-                flags.append(f"Tachypnée ({fr})")
-            elif fr < 10:
-                flags.append(f"Bradypnée ({fr})")
-
-        severe = {"Douleur thoracique": "Douleur thoracique", "Dyspnée": "Détresse respiratoire"}
-        for s in symptoms:
-            if s in severe:
-                flags.append(severe[s])
-
-        return flags
+    def _build_features_dict(self, patient_info: Dict, vitals: Dict) -> Dict:
+        """Construit dictionnaire features pour affichage."""
+        return {
+            "FC": vitals.get("FC", "?"),
+            "FR": vitals.get("FR", "?"),
+            "SpO2": vitals.get("SpO2", "?"),
+            "TA_sys": vitals.get("TA_systolique", "?"),
+            "TA_dia": vitals.get("TA_diastolique", "?"),
+            "Temp": vitals.get("Temperature", "?"),
+            "Age": patient_info.get("age", "?"),
+            "Sex": patient_info.get("sex", "?"),
+        }
 
     def _justify(
-        self, severity: str, flags: List[str], features: List[float], symptoms: List[str], rag: Dict
+        self,
+        severity: str,
+        flags: List[str],
+        features: List[float],
+        symptoms: List[str],
+        rag: Dict,
+        medical_history: List[str],
+        medications: List[str],
+        allergies: List[str],
+        duration: str,
     ) -> str:
         """Justification."""
         j = f"**{self.severity_levels[severity]['label']}**\n\n"
@@ -265,6 +304,18 @@ class MLTriagePredictor:
         if symptoms:
             j += f"\n**Symptômes:** {', '.join(symptoms)}\n"
 
+        if duration:
+            j += f"**Durée:** {duration}\n"
+
+        if medical_history:
+            j += f"**Antécédents:** {', '.join(medical_history)}\n"
+
+        if medications:
+            j += f"**Traitements:** {', '.join(medications)}\n"
+
+        if allergies:
+            j += f"**Allergies:** {', '.join(allergies)}\n"
+
         # RAG - Afficher contenu nettoyé
         if rag and rag.get("context"):
             j += "\n---\n\n**📚 Recommandations protocoles (RAG) :**\n\n"
@@ -274,10 +325,23 @@ class MLTriagePredictor:
 
         return j
 
-    def _fallback(self, symptoms: List[str], vitals: Dict) -> Dict:
-        """Fallback."""
-        flags = self._red_flags(vitals, symptoms)
+    def _fallback(
+        self,
+        symptoms: List[str],
+        vitals: Dict,
+        medical_history: List[str] = None,
+        patient_info: Dict = None,
+    ) -> Dict:
+        """Fallback basé sur règles."""
+        flags = []
 
+        # Extraire flags des constantes
+        if patient_info is None:
+            patient_info = {}
+        _, vital_flags = self._check_vital_emergency_rules(patient_info, vitals)
+        flags.extend(vital_flags)
+
+        # Déterminer sévérité
         if len(flags) >= 3:
             sev = "ROUGE"
         elif len(flags) >= 1:
@@ -293,18 +357,16 @@ class MLTriagePredictor:
             "action": self.severity_levels[sev]["action"],
             "color": self.severity_levels[sev]["color"],
             "red_flags": flags,
-            "justification": f"Règles\n\n{', '.join(flags) or 'Aucun signe'}",
+            "justification": f"**Règles métier (fallback)**\n\n{', '.join(flags) or 'Aucun signe de gravité'}",
             "probabilities": {sev: 1.0},
             "confidence": 0.5,
             "rag_sources": [],
+            "features_used": {},
         }
 
-    def _track(self, result: Dict, patient: Dict, duration: float):
-        """Track."""
+    def _track(self, result: Dict, patient_info: Dict, duration: float):
+        """Track métriques."""
         try:
-            import sys
-            from pathlib import Path
-
             sys.path.insert(0, str(Path(__file__).parent.parent))
             from src.monitoring.metrics_tracker import get_tracker
 
@@ -312,8 +374,8 @@ class MLTriagePredictor:
 
             t.track_prediction(
                 severity=result["severity_level"],
-                age=patient.get("age", 0),
-                sex=patient.get("sex", "?")[0] if patient.get("sex") else "?",
+                age=patient_info.get("age", 0),
+                sex=patient_info.get("sex", "?"),
                 symptoms=[],
                 red_flags=result["red_flags"],
                 confidence=result["confidence"],
@@ -322,6 +384,63 @@ class MLTriagePredictor:
             t.track_latency("Predictor_ML_RAG", "predict", duration)
         except:
             pass
+
+    def _track_rag_latency(self, duration: float):
+        """Track latence RAG."""
+        try:
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from src.monitoring.metrics_tracker import get_tracker
+
+            get_tracker().track_latency("RAG", "retrieve", duration)
+        except:
+            pass
+
+    def _check_vital_emergency_rules(self, patient_info: Dict, vitals: Dict) -> tuple:
+        """
+        Vérifie les règles d'urgence vitale.
+
+        Returns:
+            (is_vital_emergency: bool, red_flags: List[str])
+        """
+        red_flags = []
+
+        # Utiliser la fonction importée si disponible
+        if _check_vital_emergency_rules is not None:
+            try:
+                # Convertir au format attendu par EmergencyRules
+                id_data = {"age": patient_info.get("age", 40)}
+                const_data = {
+                    "fc": vitals.get("FC", 75),
+                    "fr": vitals.get("FR", 16),
+                    "spo2": vitals.get("SpO2", 98),
+                    "tas": vitals.get("TA_systolique", 120),
+                    "tad": vitals.get("TA_diastolique", 80),
+                    "temp": vitals.get("Temperature", 37.0),
+                }
+                return _check_vital_emergency_rules(id_data, const_data)
+            except Exception as e:
+                print(f"[WARN] EmergencyRules error: {e}")
+
+        # Fallback: règles internes simplifiées
+        fc = vitals.get("FC", 75)
+        fr = vitals.get("FR", 16)
+        spo2 = vitals.get("SpO2", 98)
+        tas = vitals.get("TA_systolique", 120)
+        temp = vitals.get("Temperature", 37.0)
+
+        if fc < 40 or fc > 150:
+            red_flags.append(f"FC critique: {fc} bpm")
+        if fr < 8 or fr > 30:
+            red_flags.append(f"FR critique: {fr}/min")
+        if spo2 < 90:
+            red_flags.append(f"Hypoxie severe: SpO2 {spo2}%")
+        if tas < 80 or tas > 180:
+            red_flags.append(f"TA critique: {tas} mmHg")
+        if temp < 35 or temp > 40:
+            red_flags.append(f"Temperature critique: {temp}C")
+
+        is_vital = len(red_flags) >= 1
+        return is_vital, red_flags
 
     def predict_with_probabilities(self, chatbot_summary: Dict) -> Dict:
         return self.predict(chatbot_summary)

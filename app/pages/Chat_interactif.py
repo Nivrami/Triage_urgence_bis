@@ -10,12 +10,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.rag.chatbot import TriageChatbotAPI
 from src.rag.predictor import MLTriagePredictor
+from src.rag.entry_forms import render_entry_forms
+from src.utils.conversation_storage import get_storage
 
 # Config
 st.set_page_config(page_title="Chatbot Triage ML", page_icon="🏥", layout="wide")
 
 st.title("🏥 Chatbot de Triage des Urgences")
 st.markdown("*Assistant ML pour aide à la décision*")
+
+
+# Afficher les formulaires et récupérer les données
+result = render_entry_forms()
+
+if result is not None:
+    patient_info, vitals = result
+    # On stocke dans le session_state pour que la sidebar y ait accès
+    st.session_state["patient_info"] = patient_info
+    st.session_state["vitals"] = vitals
+else:
+    # Si le formulaire n'est pas validé, on s'assure que les variables existent
+    patient_info, vitals = {}, {}
+    st.info("Veuillez remplir et valider le formulaire patient pour démarrer.")
+    st.stop()  # Optionnel : arrête l'exécution ici tant que le formulaire n'est pas soumis
+
+st.divider()
 
 # Session
 if "chatbot" not in st.session_state:
@@ -47,6 +66,18 @@ if "chatbot" not in st.session_state:
 
 bot = st.session_state.chatbot
 predictor = st.session_state.predictor
+
+# Synchroniser les données du formulaire avec l'état interne du bot.
+
+if patient_info:
+    bot.data.update(patient_info)
+if vitals:
+    # S'assurer que la clé 'vitals' existe dans bot.data
+    if "vitals" not in bot.data or not isinstance(bot.data["vitals"], dict):
+        bot.data["vitals"] = {}
+    bot.data["vitals"].update(vitals)
+
+# 'data' est maintenant l'état interne du bot, qui est la source de vérité
 data = bot.data
 
 # Sidebar
@@ -54,10 +85,19 @@ with st.sidebar:
     st.header("🧑‍⚕️ Dossier patient")
 
     st.subheader("Identité")
-    st.write(f"**Prénom:** {data.get('name') or '—'}")
+
+    # Utiliser 'data' (l'état du bot) comme source de vérité
+    st.write(f"**N° patient:** {data.get('patient_id') or '—'}")
     st.write(f"**Âge:** {data.get('age') or '—'}")
-    sex = "Homme" if data.get("sex") == "H" else "Femme" if data.get("sex") == "F" else "—"
-    st.write(f"**Sexe:** {sex}")
+
+    # Convertir le code sex en texte lisible
+    sex_code = data.get("sex", "—")
+    sex_display = (
+        "Homme"
+        if sex_code == "H"
+        else "Femme" if sex_code == "F" else "Autre" if sex_code == "A" else "—"
+    )
+    st.write(f"**Genre:** {sex_display}")
     st.divider()
 
     st.subheader("Symptômes")
@@ -69,20 +109,28 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Constantes vitales")
-    v = data["vitals"]
-    count = len([k for k in ["Temperature", "FC", "TA_systolique", "SpO2", "FR"] if k in v])
+
+    # Utiliser les constantes vitales de l'état du bot
+    vitals_display = data.get("vitals", {})
+
+    # Calculer progression (5 constantes attendues)
+    required_vitals = ["Temperature", "FC", "TA_systolique", "SpO2", "FR"]
+    count = sum(1 for key in required_vitals if vitals_display.get(key) is not None)
+
     st.write(f"**Progression: {count}/5**")
-    if v:
-        if "Temperature" in v:
-            st.write(f"🌡️ Temp: {v['Temperature']}°C")
-        if "FC" in v:
-            st.write(f"❤️ FC: {v['FC']} bpm")
-        if "TA_systolique" in v:
-            st.write(f"💉 TA: {v['TA_systolique']}/{v.get('TA_diastolique', '?')}")
-        if "SpO2" in v:
-            st.write(f"🫁 SpO2: {v['SpO2']}%")
-        if "FR" in v:
-            st.write(f"🌬️ FR: {v['FR']}/min")
+
+    if vitals_display:
+        if "Temperature" in vitals_display:
+            st.write(f"🌡️ Temp: {vitals_display['Temperature']}°C")
+        if "FC" in vitals_display:
+            st.write(f"❤️ FC: {vitals_display['FC']} bpm")
+        if "TA_systolique" in vitals_display:
+            ta_dia = vitals_display.get("TA_diastolique", "?")
+            st.write(f"💉 TA: {vitals_display['TA_systolique']}/{ta_dia}")
+        if "SpO2" in vitals_display:
+            st.write(f"🫁 SpO2: {vitals_display['SpO2']}%")
+        if "FR" in vitals_display:
+            st.write(f"🌬️ FR: {vitals_display['FR']}/min")
     else:
         st.write("—")
     st.divider()
@@ -105,8 +153,60 @@ with st.sidebar:
     ):
         with st.spinner("🔮 Analyse ML en cours..."):
             summary = bot.get_summary()
+            st.write(summary)
             st.session_state.prediction = predictor.predict(summary)
         st.rerun()
+
+    # Section Sauvegarde
+    st.divider()
+    st.subheader("💾 Sauvegardes")
+
+    # Bouton sauvegarder
+    can_save = st.session_state.started and len(st.session_state.messages) > 0
+    if st.button(
+        "💾 Sauvegarder conversation",
+        use_container_width=True,
+        disabled=not can_save,
+        help="Sauvegarde la conversation actuelle",
+    ):
+        storage = get_storage()
+        conv_id = storage.save_conversation(
+            messages=st.session_state.messages,
+            patient_data=data,
+            prediction=st.session_state.prediction,
+        )
+        st.success(f"Sauvegarde: {conv_id}")
+
+    # Liste des conversations sauvegardees
+    with st.expander("📂 Conversations sauvegardees"):
+        storage = get_storage()
+        conversations = storage.list_conversations(limit=10)
+
+        if conversations:
+            for conv in conversations:
+                col_info, col_load = st.columns([3, 1])
+                with col_info:
+                    name = conv.get("patient_name", "?")
+                    sev = conv.get("severity") or "—"
+                    ts = conv.get("timestamp", "")[:10]
+                    st.caption(f"{ts} | {name} | {sev}")
+                with col_load:
+                    if st.button("📥", key=f"load_{conv['id']}", help="Charger"):
+                        loaded = storage.load_conversation(conv["id"])
+                        if loaded:
+                            # Restaurer la conversation
+                            st.session_state.messages = loaded.get("messages", [])
+                            patient = loaded.get("patient_data", {})
+                            bot.data["name"] = patient.get("name")
+                            bot.data["age"] = patient.get("age")
+                            bot.data["sex"] = patient.get("sex")
+                            bot.data["symptoms"] = patient.get("symptoms", [])
+                            bot.data["vitals"] = patient.get("vitals", {})
+                            st.session_state.prediction = loaded.get("prediction")
+                            st.session_state.started = True
+                            st.rerun()
+        else:
+            st.caption("Aucune sauvegarde")
 
 # Conversation
 col1, col2 = st.columns([2, 1])

@@ -1,11 +1,12 @@
 """
 Chatbot Final - Mistral API ROBUSTE avec Monitoring
+Version mise à jour avec patient_info et vitals
 """
 
 import re
 import time
 import os
-from typing import Dict
+from typing import Dict, Optional
 from mistralai import Mistral
 from dotenv import load_dotenv
 
@@ -15,36 +16,81 @@ load_dotenv()
 class TriageChatbotAPI:
     """Chatbot Mistral API robuste avec tracking complet."""
 
-    def __init__(self, api_key: str = None, retriever=None):
+    def __init__(self, api_key: str = None, retriever=None, patient_data: Dict = None):
+        """
+        Args:
+            api_key: Clé API Mistral
+            retriever: RAG retriever pour contexte médical
+            patient_data: Données pré-remplies du formulaire {
+                'patient_id': str,
+                'age': int,
+                'sex': 'H' ou 'F' ou 'A',
+                'vitals': {
+                    'Temperature': float,
+                    'FC': int,
+                    'TA_systolique': int,
+                    'TA_diastolique': int,
+                    'SpO2': int,
+                    'FR': int
+                }
+            }
+        """
         self.api_key = api_key or os.getenv("MISTRAL_API_KEY")
-        self.retriever = retriever  # RAG retriever
+        self.retriever = retriever
+        self.patient_data = patient_data
+
         if self.api_key:
             self.client = Mistral(api_key=self.api_key)
             self.use_api = True
-
             print("[OK] Mistral API activee")
         else:
             self.use_api = False
             print("[WARN] Mode regles (sans API)")
-
+        # Initialiser avec données formulaire
         self.reset()
 
+    def reset(self):
+        """Reset avec données formulaire pré-remplies."""
+        patient_data = self.patient_data
+
+        self.data = {
+            # Données du FORMULAIRE (pré-remplies)
+            "patient_id": patient_data.get("patient_id") if patient_data else None,
+            "age": patient_data.get("age") if patient_data else None,
+            "sex": patient_data.get("sex") if patient_data else None,
+            "vitals": patient_data.get("vitals", {}) if patient_data else {},
+        }
+
     def start(self) -> str:
-        return "Bonjour. Indiquez : prénom, âge, sexe\nExemple : Jean, 25 ans, homme"
+        """Message d'accueil personnalisé avec données du formulaire."""
+        age = self.data.get("age", "?")
+        sex_code = self.data.get("sex", "?")
+
+        # Conversion H/F/A → texte
+        gender_display = "Homme" if sex_code == "H" else "Femme" if sex_code == "F" else "Patient"
+
+        patient_id = self.data.get("patient_id", "?")
+
+        msg = f"Bonjour. Je vais vous poser quelques questions sur vos symptômes.\n\n"
+        msg += f"**Dossier patient N°{patient_id}** - {gender_display}, {age} ans\n"
+        msg += f"Constantes enregistrées ✓\n\n"
+        msg += f"**Quel est votre symptôme principal aujourd'hui ?**"
+
+        return msg
 
     def chat(self, msg: str) -> str:
         """Chat principal avec tracking."""
         start = time.time()
         self.data["messages"].append({"role": "user", "content": msg})
 
-        # Extraire données
-        self._extract(msg)
+        # Extraire UNIQUEMENT symptômes et historique
+        self._extract_symptoms_and_history(msg)
 
         # Déterminer étape suivante
-        next_step = self._get_next_step()
+        next_step = self._get_next_step()  # This is the step we are about to take
 
         # Générer réponse
-        if self.use_api and self.data.get("age") and next_step != "identity":
+        if self.use_api and next_step != "symptoms":
             response = self._ask_with_api(next_step)
         else:
             response = self._ask_with_rules(next_step)
@@ -58,24 +104,20 @@ class TriageChatbotAPI:
 
     def _get_next_step(self) -> str:
         """Détermine prochaine étape unique."""
-        if not self.data.get("age") or not self.data.get("sex"):
-            return "identity"
-
         if not self.data.get("symptoms"):
             return "symptoms"
 
-        v = self.data["vitals"]
+        if not self.data.get("medical_history_asked"):
+            return "medical_history"
 
-        if "Temperature" not in v:
-            return "temperature"
-        if "FC" not in v:
-            return "fc"
-        if "TA_systolique" not in v:
-            return "ta"
-        if "SpO2" not in v:
-            return "spo2"
-        if "FR" not in v:
-            return "fr"
+        if not self.data.get("current_medications_asked"):
+            return "medications"
+
+        if not self.data.get("allergies_asked"):
+            return "allergies"
+
+        if not self.data.get("symptom_duration_asked"):
+            return "duration"
 
         return "done"
 
@@ -102,34 +144,30 @@ class TriageChatbotAPI:
 
             # Prompts système
             prompts = {
-                "symptoms": """Tu es un assistant médical empathique. Le patient a déjà donné son identité.
-Demande maintenant son symptôme principal de manière naturelle et rassurante.
-Réponds en 1-2 phrases maximum.""",
-                "temperature": """Le patient a décrit ses symptômes.
-Demande maintenant sa température corporelle de manière claire.
-IMPORTANT: L'exemple DOIT inclure l'unité °C pour que le système reconnaisse la valeur.
-Exemple à donner: "38.5°C" ou "38.5 degrés"
-Sois bref et précis.""",
-                "fc": """Demande la fréquence cardiaque (pouls) du patient.
-IMPORTANT: L'exemple DOIT inclure l'unité bpm pour que le système reconnaisse la valeur.
-Exemple à donner: "80 bpm" ou "80 battements par minute"
-Reste concis.""",
-                "ta": """Demande la tension artérielle.
-Format attendu: deux nombres séparés par un slash (systolique/diastolique).
-Exemple à donner: "120/80"
-Une seule phrase.""",
-                "spo2": """Demande la saturation en oxygène (SpO2).
-IMPORTANT: L'exemple DOIT inclure le symbole % pour que le système reconnaisse la valeur.
-Exemple à donner: "97%" ou "saturation 97"
-Sois direct.""",
-                "fr": """Demande la fréquence respiratoire.
-IMPORTANT: L'exemple DOIT inclure l'unité /min pour que le système reconnaisse la valeur.
-Exemple à donner: "16/min" ou "16 respirations par minute"
-Concis et clair.""",
-                "done": """Toutes les informations sont collectées.
-Informe le patient que son dossier est complet et qu'il peut obtenir une prédiction.
-Sois rassurant et professionnel.
-Une phrase courte.""",
+                "symptoms": """Tu es un assistant médical empathique en service d'urgence.
+Le patient va décrire ses symptômes principaux.
+Écoute attentivement et reformule pour confirmer que tu as bien compris.
+Pose une question ouverte pour approfondir si nécessaire.
+Reste bref (1-2 phrases max).""",
+                "medical_history": """Le patient a décrit ses symptômes.
+Demande maintenant s'il a des antécédents médicaux importants :
+- Maladies chroniques (diabète, hypertension, asthme, etc.)
+- Opérations chirurgicales passées
+- Hospitalisations récentes
+Formule une question claire et directe (1 phrase).""",
+                "medications": """Demande au patient s'il prend des médicaments.
+Pose une question simple et directe, sans guillemets ni salutations.
+Exemple de question : Prenez-vous des médicaments en ce moment ?""",
+                "allergies": """Demande au patient s'il a des allergies connues.
+Pose une question simple et directe, sans guillemets ni salutations.
+Exemple de question : Avez-vous des allergies connues ?""",
+                "duration": """Demande au patient depuis quand ses symptômes ont commencé.
+Pose UNE SEULE question simple et directe, sans guillemets ni salutations.
+Exemple de question : Depuis combien de temps avez-vous ces symptômes ?""",
+                "done": """Toutes les informations cliniques sont collectées.
+Remercie le patient et informe-le que son dossier est maintenant complet.
+L'équipe médicale va analyser les données pour établir le niveau de priorité.
+Sois rassurant et professionnel (2-3 phrases).""",
             }
 
             system_prompt = prompts.get(step, "Guide le patient avec empathie.")
@@ -152,11 +190,11 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
                     {"role": "system", "content": system_prompt},
                     {
                         "role": "user",
-                        "content": f"Contexte patient: {context}\n\nQuelle est ta question ?",
+                        "content": f"Contexte patient: {context}\n\nQuelle est ta prochaine question ? Réponds uniquement avec le texte de la question, sans guillemets ni salutations.",
                     },
                 ],
                 temperature=0.4,
-                max_tokens=100,
+                max_tokens=150,
             )
 
             # Track API call
@@ -166,9 +204,19 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
 
             response = resp.choices[0].message.content.strip()
 
+            # Nettoyer la réponse pour enlever les artefacts (guillemets, salutations)
+            response = response.strip().strip('"').strip("'")
+            greetings = ["bonjour, ", "bonjour ", "salut, ", "salut "]
+            for greet in greetings:
+                if response.lower().startswith(greet):
+                    response = response[len(greet) :].strip()
+                    # Remettre la majuscule
+                    if response:
+                        response = response[0].upper() + response[1:]
+
             # Nettoyer la réponse si trop longue
-            if len(response) > 200:
-                response = response[:200] + "..."
+            if len(response) > 250:
+                response = response[:250] + "..."
 
             return response
 
@@ -180,74 +228,95 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
         """Construit contexte pour Mistral."""
         parts = []
 
-        if self.data.get("name"):
-            parts.append(f"Prénom: {self.data['name']}")
+        # Identité (du formulaire)
+        if self.data.get("patient_id"):
+            parts.append(f"ID: {self.data['patient_id']}")
         if self.data.get("age"):
             parts.append(f"Âge: {self.data['age']} ans")
         if self.data.get("sex"):
-            sex = "Homme" if self.data["sex"] == "H" else "Femme"
-            parts.append(f"Sexe: {sex}")
+            sex_display = (
+                "Homme"
+                if self.data["sex"] == "H"
+                else "Femme" if self.data["sex"] == "F" else "Patient"
+            )
+            parts.append(f"Genre: {sex_display}")
+
         if self.data.get("symptoms"):
             parts.append(f"Symptômes: {', '.join(self.data['symptoms'])}")
 
         v = self.data["vitals"]
         vitals_collected = []
         if "Temperature" in v:
-            vitals_collected.append(f"Temp: {v['Temperature']}°C")
+            vitals_collected.append(f"T°={v['Temperature']}°C")
         if "FC" in v:
-            vitals_collected.append(f"FC: {v['FC']} bpm")
+            vitals_collected.append(f"FC={v['FC']}bpm")
         if "TA_systolique" in v:
-            vitals_collected.append(f"TA: {v['TA_systolique']}/{v.get('TA_diastolique', '?')}")
+            vitals_collected.append(f"TA={v['TA_systolique']}/{v.get('TA_diastolique', '?')}")
         if "SpO2" in v:
-            vitals_collected.append(f"SpO2: {v['SpO2']}%")
+            vitals_collected.append(f"SpO2={v['SpO2']}%")
         if "FR" in v:
-            vitals_collected.append(f"FR: {v['FR']}/min")
+            vitals_collected.append(f"FR={v['FR']}/min")
 
         if vitals_collected:
             parts.append(f"Constantes: {', '.join(vitals_collected)}")
+
+        # Symptômes collectés par chatbot
+        if self.data.get("symptoms"):
+            parts.append(f"Symptômes: {', '.join(self.data['symptoms'])}")
+
+        # Historique médical
+        if self.data.get("medical_history"):
+            parts.append(f"ATCD: {', '.join(self.data['medical_history'])}")
+
+        # Médicaments
+        if self.data.get("current_medications"):
+            parts.append(f"Traitement: {', '.join(self.data['current_medications'])}")
+
+        # Allergies
+        if self.data.get("allergies"):
+            parts.append(f"Allergies: {', '.join(self.data['allergies'])}")
+
+        # Durée symptômes
+        if self.data.get("symptom_duration"):
+            parts.append(f"Durée: {self.data['symptom_duration']}")
 
         return " | ".join(parts) if parts else "Nouveau patient"
 
     def _ask_with_rules(self, step: str) -> str:
         """Fallback règles."""
         responses = {
-            "identity": "Précisez votre âge et sexe.\nExemple : 25 ans homme",
-            "symptoms": "Quel est votre symptôme ?\nExemple : mal de tête / fièvre",
-            "temperature": "Quelle est votre température ?\nExemple : 38.5°C",
-            "fc": "Quel est votre pouls ?\nExemple : 80 bpm",
-            "ta": "Quelle est votre tension ?\nExemple : 120/80",
-            "spo2": "Quelle est votre saturation ?\nExemple : 97%",
-            "fr": "Quelle est votre fréquence respiratoire ?\nExemple : 16/min",
-            "done": "Dossier complet. Cliquez 'Obtenir prediction ML'.",
+            "symptoms": "Décrivez vos symptômes principaux.\nExemple : douleur thoracique intense, essoufflement",
+            "medical_history": "Avez-vous des antécédents médicaux importants ?\n(diabète, hypertension, chirurgies...)",
+            "medications": "Prenez-vous actuellement des médicaments ?\nSi oui, lesquels ?",
+            "allergies": "Avez-vous des allergies connues ?\n(médicaments, aliments, latex...)",
+            "duration": "Depuis combien de temps avez-vous ces symptômes ?\nExemple : depuis ce matin, depuis 2 jours",
+            "done": " Dossier complet. L'équipe médicale va analyser votre cas. Cliquez 'Obtenir prédiction ML'.",
         }
         return responses.get(step, "Erreur")
 
-    def _extract(self, msg: str):
-        """Extraction robuste."""
+    def _extract_symptoms_and_history(self, msg: str):
+        """Extraction UNIQUEMENT symptômes et historique (pas d'identité ni constantes)."""
         ml = msg.lower()
+        step_being_answered = self._get_next_step()
 
-        # Âge
-        if not self.data.get("age"):
-            m = re.search(r"(\d{1,3})\s*ans?", ml)
-            if m:
-                age = int(m.group(1))
-                if 0 < age < 120:
-                    self.data["age"] = age
+        # Gérer les réponses négatives simples ("non", "aucun", etc.)
+        is_negative_response = re.search(r"^\s*(non|aucun|aucune|pas|rien|jamais)\s*$", ml)
 
-        # Sexe
-        if not self.data.get("sex"):
-            if "homme" in ml:
-                self.data["sex"] = "H"
-            elif "femme" in ml:
-                self.data["sex"] = "F"
+        if is_negative_response:
+            if step_being_answered == "medical_history" and not self.data["medical_history"]:
+                self.data["medical_history"].append("Aucun antécédent déclaré")
+                self.data["medical_history_asked"] = True
+                return  # On a la réponse, on arrête l'extraction pour ce message
 
-        # Prénom
-        if not self.data.get("name"):
-            words = msg.split(",")
-            if words:
-                first = words[0].strip()
-                if len(first) >= 2 and first[0].isupper():
-                    self.data["name"] = first
+            if step_being_answered == "medications" and not self.data["current_medications"]:
+                self.data["current_medications"].append("Aucun traitement")
+                self.data["current_medications_asked"] = True
+                return
+
+            if step_being_answered == "allergies" and not self.data["allergies"]:
+                self.data["allergies"].append("Aucune allergie connue")
+                self.data["allergies_asked"] = True
+                return
 
         # Symptômes - dictionnaire étendu par catégorie médicale
         symp = {
@@ -340,6 +409,95 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
             if s and re.search(p, ml):  # Ignorer les patterns avec valeur vide
                 if s not in self.data["symptoms"]:
                     self.data["symptoms"].append(s)
+        # ══════════════════════════════════════════════════════════
+        # ANTÉCÉDENTS MÉDICAUX
+        # ══════════════════════════════════════════════════════════
+        medical_history_patterns = {
+            r"diab[èe]te|glyc[ée]mie": "Diabète",
+            r"hypertension|hta|tension\s*[ée]lev": "Hypertension",
+            r"asthme": "Asthme",
+            r"cancer|tumeur|chimioth[ée]rapie": "Antécédent de cancer",
+            r"infarctus|crise\s*cardiaque": "Infarctus du myocarde",
+            r"avc|accident.*vasculaire.*c[ée]r[ée]bral": "AVC",
+            r"insuffisance.*cardiaque": "Insuffisance cardiaque",
+            r"insuffisance.*r[ée]nale": "Insuffisance rénale",
+            r"cirrhose|foie": "Hépatopathie",
+            r"[ée]pilepsie": "Épilepsie",
+            r"thyro[ïi]de": "Trouble thyroïdien",
+            r"cholest[ée]rol": "Dyslipidémie",
+            r"op[ée]r[ée]|chirurgie|intervention": "Chirurgie antérieure",
+        }
+
+        for pattern, history in medical_history_patterns.items():
+            if re.search(pattern, ml):
+                if history not in self.data["medical_history"]:
+                    self.data["medical_history"].append(history)
+                self.data["medical_history_asked"] = True
+
+        # Détection négative (pas d'antécédent)
+        if re.search(
+            r"\b(non|aucun|pas|rien|jamais)\b.*\b(ant[ée]c[ée]dent|maladie|chirurgie)", ml
+        ):
+            if not self.data["medical_history"]:
+                self.data["medical_history"].append("Aucun antécédent déclaré")
+            self.data["medical_history_asked"] = True
+        # ══════════════════════════════════════════════════════════
+        # MÉDICAMENTS
+        # ══════════════════════════════════════════════════════════
+        medication_patterns = {
+            r"doliprane|parac[ée]tamol": "Paracétamol",
+            r"ibuprofène|advil|nurofen": "Ibuprofène",
+            r"aspirine": "Aspirine",
+            r"m[ée]tformine": "Metformine",
+            r"insuline": "Insuline",
+            r"ramipril|[ée]nalapril|.*pril\b": "IEC",
+            r"amlodipine|.*dipine\b": "Inhibiteur calcique",
+            r"atorvastatine|simvastatine|.*statine\b": "Statine",
+            r"l[ée]vothyrox|thyroxine": "Lévothyroxine",
+            r"ventoline|salbutamol": "Bronchodilatateur",
+            r"cortisone|prednisone": "Corticoïde",
+            r"anticoagulant|warfarine|xarelto": "Anticoagulant",
+            r"antid[ée]presseur": "Antidépresseur",
+        }
+
+        for pattern, med in medication_patterns.items():
+            if re.search(pattern, ml):
+                if med not in self.data["current_medications"]:
+                    self.data["current_medications"].append(med)
+                self.data["current_medications_asked"] = True
+
+        # Détection négative
+        if re.search(r"\b(non|aucun|pas|rien)\b.*(m[ée]dicament|traitement|comprim)", ml):
+            if not self.data["current_medications"]:
+                self.data["current_medications"].append("Aucun traitement")
+            self.data["current_medications_asked"] = True
+
+        # ══════════════════════════════════════════════════════════
+        # ALLERGIES
+        # ══════════════════════════════════════════════════════════
+        allergy_patterns = {
+            r"p[ée]nicilline": "Pénicilline",
+            r"aspirine": "Aspirine",
+            r"iode": "Iode",
+            r"latex": "Latex",
+            r"arachide|cacahu[èe]te": "Arachide",
+            r"gluten": "Gluten",
+            r"lactose|lait": "Lactose",
+            r"pollen": "Pollen",
+            r"acarien": "Acariens",
+        }
+
+        for pattern, allergy in allergy_patterns.items():
+            if re.search(pattern, ml):
+                if allergy not in self.data["allergies"]:
+                    self.data["allergies"].append(allergy)
+                self.data["allergies_asked"] = True
+
+        # Détection négative
+        if re.search(r"\b(non|aucune|pas)\b.*allergi", ml):
+            if not self.data["allergies"]:
+                self.data["allergies"].append("Aucune allergie connue")
+            self.data["allergies_asked"] = True
 
         # Température - exiger contexte (°, degré, température, temp)
         if "Temperature" not in self.data["vitals"]:
@@ -349,36 +507,38 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
                 if 35 <= t <= 43:
                     self.data["vitals"]["Temperature"] = t
 
-        # FC - exiger contexte (bpm, battement, pouls, cardiaque, fc)
-        if "FC" not in self.data["vitals"]:
-            m = re.search(r"(\d{2,3})\s*(?:bpm|battement|pouls|cardiaque|fc)", ml)
-            if m:
-                fc = int(m.group(1))
-                if 30 <= fc <= 220:
-                    self.data["vitals"]["FC"] = fc
+        # ══════════════════════════════════════════════════════════
+        # DURÉE DES SYMPTÔMES
+        # ══════════════════════════════════════════════════════════
+        # Helper pour convertir les mots-nombres en chiffres
+        num_words = {"un": "1", "une": "1", "deux": "2", "trois": "3", "quatre": "4", "cinq": "5"}
+        processed_msg = ml
+        for word, digit in num_words.items():
+            processed_msg = re.sub(r"\b" + word + r"\b", digit, processed_msg)
 
-        # TA - format explicite avec slash
-        if "TA_systolique" not in self.data["vitals"]:
-            m = re.search(r"(\d{2,3})\s*/\s*(\d{2,3})", ml)
-            if m:
-                self.data["vitals"]["TA_systolique"] = int(m.group(1))
-                self.data["vitals"]["TA_diastolique"] = int(m.group(2))
+        duration_patterns = [
+            (r"(\d+)\s*heure", lambda m: f"{m.group(1)}h"),
+            (r"(\d+)\s*jour", lambda m: f"{m.group(1)}j"),
+            (r"(\d+)\s*semaine", lambda m: f"{m.group(1)} semaine(s)"),
+            (r"ce\s*matin", lambda m: "Ce matin"),
+            (r"hier", lambda m: "Hier"),
+            (r"(\d+)\s*mois", lambda m: f"{m.group(1)} mois"),
+            (r"brutal|soudain|d'un\s*coup", lambda m: "Début brutal"),
+            (r"progressif|petit\s*à\s*petit", lambda m: "Début progressif"),
+        ]
 
-        # SpO2 - exiger contexte (%, sat, spo, oxygène)
-        if "SpO2" not in self.data["vitals"]:
-            m = re.search(r"(\d{2,3})\s*(?:%|sat|spo|oxyg)", ml)
-            if m:
-                spo2 = int(m.group(1))
-                if 50 <= spo2 <= 100:
-                    self.data["vitals"]["SpO2"] = spo2
+        for pattern, extractor in duration_patterns:
+            match = re.search(pattern, processed_msg)
+            if match and not self.data.get("symptom_duration"):
+                self.data["symptom_duration"] = extractor(match)
+                self.data["symptom_duration_asked"] = True
+                break
 
-        # FR - exiger contexte (respir, /min, fr)
-        if "FR" not in self.data["vitals"]:
-            m = re.search(r"(\d{1,2})\s*(?:respir|/min|fr\b)", ml)
-            if m:
-                fr = int(m.group(1))
-                if 5 <= fr <= 60:
-                    self.data["vitals"]["FR"] = fr
+        # Gérer les réponses évasives pour la durée
+        if not self.data.get("symptom_duration_asked"):
+            if re.search(r"\b(sais\s*pas|sais\s*plus|aucune\s*id[ée]e|pas\s*s[uû]r)\b", ml):
+                self.data["symptom_duration"] = "Inconnue"
+                self.data["symptom_duration_asked"] = True
 
     def _track_latency(self, duration: float):
         """Track latence chatbot."""
@@ -414,37 +574,55 @@ Contexte médical de référence (utilise ces informations pour guider tes quest
             pass
 
     def is_ready_for_prediction(self) -> bool:
-        """Vérifie si 5/5 constantes."""
-        v = self.data["vitals"]
+        """Vérifie si collecte complète (symptômes + historique minimal)."""
         return (
-            self.data.get("age")
-            and self.data.get("sex")
-            and self.data.get("symptoms")
-            and all(k in v for k in ["Temperature", "FC", "TA_systolique", "SpO2", "FR"])
+            self.data.get("age")  # Du formulaire
+            and self.data.get("sex")  # Du formulaire
+            and len(self.data["vitals"]) >= 5  # Du formulaire
+            and self.data.get("symptoms")  # Du chatbot
+            and self.data.get("medical_history_asked")  # Du chatbot
         )
 
     def get_summary(self) -> Dict:
-        """Résumé pour prédiction ML."""
+        """Résumé complet pour prédiction ML."""
         return {
             "patient_info": {
-                "name": self.data.get("name"),
+                "patient_id": self.data.get("num_patient"),
                 "age": self.data.get("age"),
-                "sex": "Femme" if self.data.get("sex") == "F" else "Homme",
+                "sex": self.data.get("sex"),
             },
             "symptoms": self.data.get("symptoms", []),
             "vitals": self.data["vitals"],
+            "medical_history": self.data.get("medical_history", []),
+            "current_medications": self.data.get("current_medications", []),
+            "allergies": self.data.get("allergies", []),
+            "symptom_duration": self.data.get("symptom_duration"),
             "messages": [
                 m.get("content", m) if isinstance(m, dict) else m for m in self.data["messages"]
             ],
         }
 
     def reset(self):
-        """Reset complet."""
+        """Reset avec données formulaire pré-remplies."""
+        patient_data = self.patient_data
+
         self.data = {
-            "name": None,
-            "age": None,
-            "sex": None,
+            # Données du FORMULAIRE (pré-remplies)
+            "patient_id": patient_data.get("patient_id") if patient_data else None,
+            "age": patient_data.get("age") if patient_data else None,
+            "sex": patient_data.get("sex") if patient_data else None,
+            "vitals": patient_data.get("vitals", {}) if patient_data else {},
+            # Données collectées par le CHATBOT
             "symptoms": [],
-            "vitals": {},
+            "medical_history": [],
+            "current_medications": [],
+            "allergies": [],
+            "symptom_duration": None,
+            # Flags de progression
+            "medical_history_asked": False,
+            "current_medications_asked": False,
+            "allergies_asked": False,
+            "symptom_duration_asked": False,
+            # Conversation
             "messages": [],
         }
